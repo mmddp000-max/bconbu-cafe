@@ -173,7 +173,7 @@ const CloseBtn = ({ onClick }) => (
 );
 
 /* ── DETAIL MODAL ── */
-function DetailModal({ post, onClose, onLike, onBookmark, onEdit, onAddComment, onDeleteComment }) {
+function DetailModal({ post, onClose, onLike, onBookmark, onEdit, onDelete, onAddComment, onDeleteComment }) {
   const cs = CAT_STYLE[post.category];
   const [commentText, setCommentText] = useState("");
   const [commentName, setCommentName] = useState("");
@@ -338,6 +338,11 @@ function DetailModal({ post, onClose, onLike, onBookmark, onEdit, onAddComment, 
             border:"1.5px solid #E8E8E8", background:"#fff",
             color:"#555", transition:"all 0.18s",
           }}>✏️ 수정</button>
+          <button onClick={() => onDelete(post.id)} style={{
+            flex:1, padding:"12px", borderRadius:"10px", cursor:"pointer", fontSize:"14px", fontWeight:600,
+            border:"1.5px solid #FFE0E0", background:"#FFF5F5",
+            color:"#FF6B6B", transition:"all 0.18s",
+          }}>🗑️ 삭제</button>
         </div>
 
         {/* ── 댓글 섹션 ── */}
@@ -1274,7 +1279,7 @@ JSON만 반환:
 }
 
 /* ── NEWS CARD ── */
-function NewsCard({ post, index, onClick, onLike, onBookmark }) {
+function NewsCard({ post, index, onClick, onLike, onBookmark, onDelete }) {
   const [hov, setHov] = useState(false);
   const cs = CAT_STYLE[post.category];
   return (
@@ -1337,14 +1342,102 @@ function NewsCard({ post, index, onClick, onLike, onBookmark }) {
             fontSize:"14px", transition:"color 0.15s",
             color:post.bookmarked ? "#F59E0B" : "#CCCCCC",
           }}>{post.bookmarked ? "🔖" : "📌"}</button>
+          <button onClick={e => { e.stopPropagation(); onDelete(post.id); }} style={{
+            border:"none", background:"none", cursor:"pointer", padding:"4px 6px",
+            fontSize:"13px", color:"#DDDDDD", transition:"color 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.color="#FF6B6B"}
+          onMouseLeave={e => e.currentTarget.style.color="#DDDDDD"}
+          >🗑️</button>
         </div>
       </div>
     </div>
   );
 }
 
+/* ── PASSWORD GATE ── */
+const PASSWORD = "bc0410";
+
+function PasswordGate({ onEnter }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const tryEnter = () => {
+    if (pw === PASSWORD) {
+      onEnter();
+    } else {
+      setError(true);
+      setShake(true);
+      setPw("");
+      setTimeout(() => setShake(false), 500);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight:"100vh", background:"#111",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      fontFamily:"'Pretendard', -apple-system, sans-serif",
+      padding:"24px",
+    }}>
+      <div style={{
+        background:"#fff", borderRadius:"20px", padding:"40px 36px",
+        width:"100%", maxWidth:"380px", textAlign:"center",
+        boxShadow:"0 32px 80px rgba(0,0,0,0.4)",
+        animation: shake ? "shake 0.4s ease" : "fadeUp 0.4s ease",
+      }}>
+        <div style={{
+          width:"56px", height:"56px", background:"#111", borderRadius:"14px",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          fontSize:"26px", margin:"0 auto 20px",
+        }}>⚡</div>
+        <h1 style={{ fontSize:"20px", fontWeight:700, color:"#111", marginBottom:"6px" }}>브콘부 물류창고</h1>
+        <p style={{ fontSize:"14px", color:"#AAAAAA", marginBottom:"28px" }}>팀 전용 공간이에요. 비밀번호를 입력해주세요.</p>
+        <input
+          type="password"
+          value={pw}
+          onChange={e => { setPw(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === "Enter" && tryEnter()}
+          placeholder="비밀번호 입력"
+          autoFocus
+          style={{
+            width:"100%", padding:"13px 16px", borderRadius:"10px",
+            border:`1.5px solid ${error ? "#FF6B6B" : "#E8E8E8"}`,
+            fontSize:"15px", outline:"none", marginBottom:"8px",
+            textAlign:"center", letterSpacing:"0.2em",
+            transition:"border-color 0.18s", boxSizing:"border-box",
+          }}
+          onFocus={e => e.target.style.borderColor="#111"}
+          onBlur={e => e.target.style.borderColor=error?"#FF6B6B":"#E8E8E8"}
+        />
+        {error && <p style={{ fontSize:"12px", color:"#FF6B6B", marginBottom:"8px" }}>비밀번호가 틀렸어요 🙅</p>}
+        <button onClick={tryEnter} style={{
+          width:"100%", padding:"13px", borderRadius:"10px",
+          border:"none", background:"#111", color:"#fff",
+          fontSize:"14px", fontWeight:700, cursor:"pointer",
+          transition:"background 0.18s", marginTop:"4px",
+        }}
+        onMouseEnter={e => e.currentTarget.style.background="#333"}
+        onMouseLeave={e => e.currentTarget.style.background="#111"}
+        >입장하기 →</button>
+      </div>
+      <style>{`
+        @keyframes shake {
+          0%,100%{transform:translateX(0)}
+          20%{transform:translateX(-10px)}
+          40%{transform:translateX(10px)}
+          60%{transform:translateX(-8px)}
+          80%{transform:translateX(8px)}
+        }
+      `}</style>
+    </div>
+  );
+}
+
 /* ── APP ── */
 export default function App() {
+  const [auth, setAuth]             = useState(() => sessionStorage.getItem("bconbu-auth") === "1");
   const [posts, setPosts]           = useState(SAMPLE_POSTS);
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
@@ -1364,6 +1457,11 @@ export default function App() {
   const handleUpdate = (updated) => {
     setPosts(ps => ps.map(p => p.id === updated.id ? updated : p));
     setEditPost(null);
+  };
+  const handleDelete = (id) => {
+    if (!window.confirm("이 카드를 삭제할까요?")) return;
+    setPosts(ps => ps.filter(p => p.id !== id));
+    setDetail(null);
   };
   const handleAddComment = (postId, comment) => {
     setPosts(ps => ps.map(p =>
@@ -1390,6 +1488,10 @@ export default function App() {
 
   const bmCount = posts.filter(p => p.bookmarked).length;
 
+  if (!auth) {
+    return <PasswordGate onEnter={() => { sessionStorage.setItem("bconbu-auth","1"); setAuth(true); }} />;
+  }
+
   if (showWrite) {
     return (
       <>
@@ -1411,7 +1513,7 @@ export default function App() {
     <>
       <G />
 
-      {detail && <DetailModal post={detail} onClose={() => setDetail(null)} onLike={handleLike} onBookmark={handleBookmark} onEdit={handleEdit} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment} />}
+      {detail && <DetailModal post={detail} onClose={() => setDetail(null)} onLike={handleLike} onBookmark={handleBookmark} onEdit={handleEdit} onDelete={handleDelete} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment} />}
       
 
       {/* HEADER */}
@@ -1529,7 +1631,7 @@ export default function App() {
             {filtered.map((post, i) => (
               <NewsCard key={post.id} post={post} index={i}
                 onClick={() => setDetail(post)}
-                onLike={handleLike} onBookmark={handleBookmark} />
+                onLike={handleLike} onBookmark={handleBookmark} onDelete={handleDelete} />
             ))}
           </div>
         )}
