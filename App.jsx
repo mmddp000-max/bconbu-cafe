@@ -595,7 +595,12 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
     }))).then(insertMedia); e.target.value = "";
   };
   const handleFileAttach = e => {
-    insertMedia(Array.from(e.target.files).map(f => ({ id:Date.now()+Math.random(), type:"file", name:f.name, size:f.size, mime:f.type||"application/octet-stream", src:URL.createObjectURL(f) })));
+    const files = Array.from(e.target.files);
+    Promise.all(files.map(f => new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res({ id:Date.now()+Math.random(), type:"file", name:f.name, size:f.size, mime:f.type||"application/octet-stream", src:r.result });
+      r.readAsDataURL(f);
+    }))).then(insertMedia);
     e.target.value = "";
   };
   const handleEditorDrop = e => {
@@ -976,15 +981,11 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
 
   const handleFileAttach = (e) => {
     const files = Array.from(e.target.files);
-    const newBlocks = files.map(f => ({
-      id: Date.now() + Math.random(),
-      type: "file",
-      name: f.name,
-      size: f.size,
-      mime: f.type || "application/octet-stream",
-      src: URL.createObjectURL(f),
-    }));
-    insertMedia(newBlocks);
+    Promise.all(files.map(f => new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res({ id:Date.now()+Math.random(), type:"file", name:f.name, size:f.size, mime:f.type||"application/octet-stream", src:r.result });
+      r.readAsDataURL(f);
+    }))).then(insertMedia);
     e.target.value = "";
   };
 
@@ -2131,13 +2132,14 @@ export default function App() {
   useEffect(() => {
     try {
       // 이미지/영상 src는 용량이 크므로 제외하고 저장
+      // 이미지/영상은 용량이 크므로 src 제거, 파일(base64)은 유지
       const toSave = posts.map(p => ({
         ...p,
         blocks: p.blocks?.map(b =>
-          (b.type === "image" || b.type === "video" || b.type === "file") ? { ...b, src: "" } : b
+          (b.type === "image" || b.type === "video") ? { ...b, src: "" } : b
         ),
         bBlocks: p.bBlocks?.map(b =>
-          (b.type === "image" || b.type === "video" || b.type === "file") ? { ...b, src: "" } : b
+          (b.type === "image" || b.type === "video") ? { ...b, src: "" } : b
         ),
         images: [],
         videos: [],
@@ -2187,6 +2189,7 @@ export default function App() {
         <G />
         <FormComponent
           editPost={editPost}
+          writeCategory={writeCategory}
           onClose={() => { setShowWrite(false); setEditPost(null); setWriteCategory(null); }}
           onSubmit={(post) => {
             if (editPost) { handleUpdate(post); } else { handleAdd(post); }
