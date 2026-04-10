@@ -55,6 +55,24 @@ const updatePost = async (post) => {
   });
 };
 
+/* ── Supabase Storage 이미지 업로드 ── */
+const uploadToStorage = async (file) => {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext;
+  const res = await fetch(SB_URL + "/storage/v1/object/images/" + path, {
+    method: "POST",
+    headers: {
+      "apikey": SB_KEY,
+      "Authorization": "Bearer " + SB_KEY,
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "true",
+    },
+    body: file,
+  });
+  if (!res.ok) return null;
+  return SB_URL + "/storage/v1/object/public/images/" + path;
+};
+
 const CATEGORIES = [
   { id: "all",      label: "전체" },
   { id: "ai-trend", label: "AI 트렌드" },
@@ -637,6 +655,9 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
       setBlocks(bs => {
         const idx = bs.findIndex(b => b.id === block.id);
         if (bs.length === 1) return bs;
+        // 이전 블록이 section이면 삭제하지 않고 섹션 다음에 텍스트 유지
+        const prev = bs[idx-1];
+        if (prev && prev.type === "section") return bs;
         const n = bs.filter(b => b.id !== block.id);
         const prevId = n[Math.max(0, idx-1)]?.id;
         setTimeout(() => { const t = textareaRefs.current[prevId]; if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);} }, 20);
@@ -658,14 +679,23 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
   };
 
   const handleImageFiles = e => {
-    Promise.all(Array.from(e.target.files).map(f => new Promise(res => {
-      const r = new FileReader(); r.onload = () => res({ id:Date.now()+Math.random(), type:"image", src:r.result, name:f.name }); r.readAsDataURL(f);
-    }))).then(insertMedia); e.target.value = "";
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    Promise.all(files.map(async f => {
+      const url = await uploadToStorage(f);
+      if (url) return { id:Date.now()+Math.random(), type:"image", src:url, name:f.name };
+      // 실패 시 base64 fallback
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:"image",src:r.result,name:f.name}); r.readAsDataURL(f); });
+    })).then(insertMedia);
   };
   const handleVideoFiles = e => {
-    Promise.all(Array.from(e.target.files).map(f => new Promise(res => {
-      const r = new FileReader(); r.onload = () => res({ id:Date.now()+Math.random(), type:"video", src:r.result, name:f.name }); r.readAsDataURL(f);
-    }))).then(insertMedia); e.target.value = "";
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    Promise.all(files.map(async f => {
+      const url = await uploadToStorage(f);
+      if (url) return { id:Date.now()+Math.random(), type:"video", src:url, name:f.name };
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:"video",src:r.result,name:f.name}); r.readAsDataURL(f); });
+    })).then(insertMedia);
   };
   const handleFileAttach = e => {
     const files = Array.from(e.target.files);
@@ -680,10 +710,12 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
     if (!files.length) return;
-    Promise.all(files.map(f => new Promise(res => {
-      const r = new FileReader(); const t = f.type.startsWith("image/") ? "image" : "video";
-      r.onload = () => res({ id:Date.now()+Math.random(), type:t, src:r.result, name:f.name }); r.readAsDataURL(f);
-    }))).then(insertMedia);
+    Promise.all(files.map(async f => {
+      const t = f.type.startsWith("image/") ? "image" : "video";
+      const url = await uploadToStorage(f);
+      if (url) return { id:Date.now()+Math.random(), type:t, src:url, name:f.name };
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:t,src:r.result,name:f.name}); r.readAsDataURL(f); });
+    })).then(insertMedia);
   };
 
   const handleSubmit = () => {
@@ -732,12 +764,12 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
           const imageItems = items.filter(item => item.type.startsWith("image/"));
           if (imageItems.length === 0) return;
           e.preventDefault();
-          Promise.all(imageItems.map(item => new Promise(res => {
-            const file = item.getAsFile(); if (!file) return res(null);
-            const r = new FileReader();
-            r.onload = () => res({ id:Date.now()+Math.random(), type:"image", src:r.result, name:`붙여넣기_${Date.now()}.png` });
-            r.readAsDataURL(file);
-          }))).then(newBlocks => { const valid = newBlocks.filter(Boolean); if (valid.length) insertMedia(valid); });
+          Promise.all(imageItems.map(async item => {
+            const file = item.getAsFile(); if (!file) return null;
+            const url = await uploadToStorage(file);
+            if (url) return { id:Date.now()+Math.random(), type:"image", src:url, name:`붙여넣기_${Date.now()}.png` };
+            return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:"image",src:r.result,name:`붙여넣기_${Date.now()}.png`}); r.readAsDataURL(file); });
+          })).then(newBlocks => { const valid = newBlocks.filter(Boolean); if (valid.length) insertMedia(valid); });
         }}
       >
         <div style={{ width:"100%", maxWidth:"720px", padding:"40px 24px 120px", position:"relative" }}>
@@ -804,12 +836,18 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
               if (block.type === "section") {
                 const sec = B_SECTIONS.find(s => s.id === block.sectionId) || B_SECTIONS[0];
                 return (
-                  <div key={block.id} data-block-row={idx} style={{ margin:"28px 0 16px", display:"flex", alignItems:"center", gap:"8px" }}>
+                  <div key={block.id} data-block-row={idx} style={{ margin:"28px 0 16px", display:"flex", alignItems:"center", gap:"8px", position:"relative" }}>
                     <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
                     <div style={{ padding:"6px 20px", borderRadius:"999px", border:`2px solid ${sec.color}`, fontSize:"13px", fontWeight:700, color:sec.color, whiteSpace:"nowrap", background:"#fff" }}>
                       {sec.emoji} {sec.label}
                     </div>
                     <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
+                    {/* 섹션 삭제 버튼 */}
+                    <button type="button"
+                      onClick={() => setBlocks(bs => bs.filter(b => b.id !== block.id))}
+                      style={{ position:"absolute", right:0, top:"50%", transform:"translateY(-50%)", width:"20px", height:"20px", border:"none", borderRadius:"50%", background:"#E0E0E0", color:"#888", fontSize:"11px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}
+                      onMouseEnter={e=>{e.currentTarget.style.background="#FF6B6B";e.currentTarget.style.color="#fff";}}
+                      onMouseLeave={e=>{e.currentTarget.style.background="#E0E0E0";e.currentTarget.style.color="#888";}}>✕</button>
                   </div>
                 );
               }
@@ -829,10 +867,32 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
                   >
                     {block.type === "text" && (
                       <textarea ref={el=>textareaRefs.current[block.id]=el} value={block.content}
-                        onChange={e=>{ updateBlock(block.id,e.target.value); e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; }}
-                        onKeyDown={e=>handleKeyDown(e,block)} onFocus={()=>setFocusedId(block.id)} onBlur={()=>setFocusedId(p=>p===block.id?null:p)}
-                        placeholder="" rows={1}
-                        style={{ width:"100%", border:"none", background:"none", fontSize:block.fontSize||"15px", lineHeight:1.9, color:"#333", outline:"none", resize:"none", padding:"2px 0", overflow:"hidden", minHeight:"28px", display:"block", textAlign:block.textAlign||"left" }}
+                        onChange={e=>{ updateBlock(block.id,e.target.value); const t=e.target; t.style.height="0"; t.style.height=Math.max(t.scrollHeight,24)+"px"; }}
+                        onKeyDown={e => {
+                          handleKeyDown(e, block);
+                          const ta = e.currentTarget;
+                          if (e.key === "ArrowUp" && ta.selectionStart === 0) {
+                            e.preventDefault();
+                            setBlocks(bs => {
+                              const idx = bs.findIndex(b => b.id === block.id);
+                              const prevText = [...bs].slice(0, idx).reverse().find(b => b.type === "text");
+                              if (prevText) { setTimeout(() => { const t = textareaRefs.current[prevText.id]; if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);} }, 10); }
+                              return bs;
+                            });
+                          }
+                          if (e.key === "ArrowDown" && ta.selectionStart === ta.value.length) {
+                            e.preventDefault();
+                            setBlocks(bs => {
+                              const idx = bs.findIndex(b => b.id === block.id);
+                              const nextText = bs.slice(idx+1).find(b => b.type === "text");
+                              if (nextText) { setTimeout(() => { const t = textareaRefs.current[nextText.id]; if(t){t.focus();t.setSelectionRange(0,0);} }, 10); }
+                              return bs;
+                            });
+                          }
+                        }}
+                        onFocus={()=>setFocusedId(block.id)} onBlur={()=>setFocusedId(p=>p===block.id?null:p)}
+                        placeholder="" 
+                        style={{ width:"100%", border:"none", background:"none", fontSize:block.fontSize||"15px", lineHeight:1.6, color:"#333", outline:"none", resize:"none", padding:"2px 0", overflow:"hidden", minHeight:"24px", display:"block", textAlign:block.textAlign||"left" }}
                       />
                     )}
                     {block.type === "image" && (
@@ -868,6 +928,34 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
                 </div>
               );
             })}
+          </div>
+          {/* 섹션 추가 버튼 */}
+          <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginTop:"24px", paddingTop:"16px", borderTop:"1px solid #F0F0F0" }}>
+            <p style={{ fontSize:"12px", color:"#AAA", width:"100%", marginBottom:"8px" }}>섹션 추가</p>
+            {B_SECTIONS.map(sec => (
+              <button key={sec.id} type="button"
+                onClick={() => {
+                  const newSectionId = Date.now();
+                  const newTextId = Date.now()+1;
+                  setBlocks(bs => [...bs,
+                    { id:newSectionId, type:"section", sectionId:sec.id },
+                    { id:newTextId,    type:"text",    content:"" },
+                  ]);
+                  setTimeout(() => textareaRefs.current[newTextId]?.focus(), 50);
+                }}
+                style={{ padding:"5px 14px", borderRadius:"999px", border:`1.5px solid ${sec.color}`, background:"#fff", fontSize:"12px", fontWeight:600, color:sec.color, cursor:"pointer" }}>
+                + {sec.emoji} {sec.label}
+              </button>
+            ))}
+            <button type="button"
+              onClick={() => {
+                const newId = Date.now();
+                setBlocks(bs => [...bs, { id:newId, type:"text", content:"" }]);
+                setTimeout(() => textareaRefs.current[newId]?.focus(), 50);
+              }}
+              style={{ padding:"5px 14px", borderRadius:"999px", border:"1.5px solid #E0E0E0", background:"#fff", fontSize:"12px", fontWeight:600, color:"#888", cursor:"pointer" }}>
+              + 텍스트 블록
+            </button>
           </div>
           <div style={{ minHeight:"80px", cursor:"text" }} onClick={()=>{ const last=[...blocks].reverse().find(b=>b.type==="text"); if(last)textareaRefs.current[last.id]?.focus(); }} />
         </div>
@@ -1037,38 +1125,41 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
     }, 50);
   };
 
-  const handleImageFiles = (e) => {
+  const handleImageFiles = async (e) => {
     const files = Array.from(e.target.files);
-    Promise.all(files.map(f => new Promise(res => {
-      const r = new FileReader();
-      r.onload = () => res({ id: Date.now() + Math.random(), type:"image", src: r.result, name: f.name });
-      r.readAsDataURL(f);
-    }))).then(insertMedia);
     e.target.value = "";
+    const blocks = await Promise.all(files.map(async f => {
+      const url = await uploadToStorage(f);
+      if (url) return { id: Date.now()+Math.random(), type:"image", src:url, name:f.name };
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:"image",src:r.result,name:f.name}); r.readAsDataURL(f); });
+    }));
+    insertMedia(blocks);
   };
 
-  const handleVideoFiles = (e) => {
+  const handleVideoFiles = async (e) => {
     const files = Array.from(e.target.files);
-    Promise.all(files.map(f => new Promise(res => {
-      const r = new FileReader();
-      r.onload = () => res({ id: Date.now() + Math.random(), type:"video", src: r.result, name: f.name });
-      r.readAsDataURL(f);
-    }))).then(insertMedia);
     e.target.value = "";
+    const blocks = await Promise.all(files.map(async f => {
+      const url = await uploadToStorage(f);
+      if (url) return { id: Date.now()+Math.random(), type:"video", src:url, name:f.name };
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:"video",src:r.result,name:f.name}); r.readAsDataURL(f); });
+    }));
+    insertMedia(blocks);
   };
 
   /* 에디터 영역 드래그 앤 드롭 */
-  const handleEditorDrop = (e) => {
+  const handleEditorDrop = async (e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files)
       .filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
     if (!files.length) return;
-    Promise.all(files.map(f => new Promise(res => {
-      const r = new FileReader();
+    const newBlocks = await Promise.all(files.map(async f => {
       const t = f.type.startsWith("image/") ? "image" : "video";
-      r.onload = () => res({ id: Date.now() + Math.random(), type: t, src: r.result, name: f.name });
-      r.readAsDataURL(f);
-    }))).then(insertMedia);
+      const url = await uploadToStorage(f);
+      if (url) return { id: Date.now()+Math.random(), type:t, src:url, name:f.name };
+      return new Promise(res => { const r=new FileReader(); r.onload=()=>res({id:Date.now()+Math.random(),type:t,src:r.result,name:f.name}); r.readAsDataURL(f); });
+    }));
+    insertMedia(newBlocks);
   };
 
   const handleFileAttach = (e) => {
@@ -1430,12 +1521,35 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
                         value={block.content}
                         onChange={e => {
                           updateBlock(block.id, e.target.value);
-                          e.target.style.height = "auto";
-                          e.target.style.height = e.target.scrollHeight + "px";
+                          const t = e.target;
+                          t.style.height = "0";
+                          t.style.height = Math.max(t.scrollHeight, 24) + "px";
                         }}
                         onFocus={() => setFocusedId(block.id)}
                         onBlur={() => setTimeout(() => setFloatBar(null), 150)}
-                        onKeyDown={e => handleKeyDown(e, block)}
+                        onKeyDown={e => {
+                          handleKeyDown(e, block);
+                          // 방향키로 블록 간 이동
+                          const ta = e.currentTarget;
+                          if (e.key === "ArrowUp" && ta.selectionStart === 0) {
+                            e.preventDefault();
+                            setBlocks(bs => {
+                              const idx = bs.findIndex(b => b.id === block.id);
+                              const prevText = [...bs].slice(0, idx).reverse().find(b => b.type === "text");
+                              if (prevText) { setTimeout(() => { const t = textareaRefs.current[prevText.id]; if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);} }, 10); }
+                              return bs;
+                            });
+                          }
+                          if (e.key === "ArrowDown" && ta.selectionStart === ta.value.length) {
+                            e.preventDefault();
+                            setBlocks(bs => {
+                              const idx = bs.findIndex(b => b.id === block.id);
+                              const nextText = bs.slice(idx+1).find(b => b.type === "text");
+                              if (nextText) { setTimeout(() => { const t = textareaRefs.current[nextText.id]; if(t){t.focus();t.setSelectionRange(0,0);} }, 10); }
+                              return bs;
+                            });
+                          }
+                        }}
                         onMouseUp={e => {
                           const ta = e.currentTarget;
                           const s = ta.selectionStart, en = ta.selectionEnd;
@@ -1454,14 +1568,14 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
                           if (ta.selectionStart === ta.selectionEnd) setFloatBar(null);
                         }}
                         placeholder={blocks.filter(b=>b.type==="text").indexOf(block) === 0 ? "내용을 입력하세요. 사진·영상은 위 툴바 버튼이나 드래그로 추가하세요." : ""}
-                        rows={1}
                         style={{
                           width:"100%", border:"none", background:"none",
-                          fontSize: block.fontSize || "15px", lineHeight:1.9, color:"#333",
+                          fontSize: block.fontSize || "15px", lineHeight:1.6, color:"#333",
                           outline:"none", resize:"none", padding:"2px 0",
-                          overflow:"hidden", minHeight:"28px", display:"block",
+                          overflow:"hidden", minHeight:"24px", display:"block",
                           cursor: isDragging ? "grabbing" : "text",
                           textAlign: block.textAlign || "left",
+                          lineHeight: 1.6,
                         }}
                       />
                     )}
@@ -1507,13 +1621,31 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
                                   style={{ width:"100%", border:"none", background:"none", fontSize:"14px", lineHeight:1.8, color:"#444", outline:"none", resize:"none", padding:"4px 0", overflow:"hidden", minHeight:"40px" }}
                                 />
                               )}
-                              {/* 미디어 */}
-                              {bodyMediaBlocks.map(m => (
-                                <div key={m.id} style={{ margin:"8px 0", position:"relative" }}>
-                                  {m.type==="image" && <img src={m.src} alt={m.name} style={{ width:"100%", borderRadius:"8px", objectFit:"contain", maxHeight:"300px" }} />}
+                              {/* 미디어 - 드래그로 순서 변경 가능 */}
+                              {bodyMediaBlocks.map((m, mi) => (
+                                <div key={m.id} style={{ margin:"8px 0", position:"relative", cursor:"grab" }}
+                                  draggable
+                                  onDragStart={e => e.dataTransfer.setData("expandMediaId", m.id)}
+                                  onDragOver={e => e.preventDefault()}
+                                  onDrop={e => {
+                                    e.preventDefault();
+                                    const dragId = e.dataTransfer.getData("expandMediaId");
+                                    if (!dragId || dragId === String(m.id)) return;
+                                    setBlocks(bs => {
+                                      const n = [...bs];
+                                      const fromIdx = n.findIndex(b => String(b.id) === dragId);
+                                      const toIdx = n.findIndex(b => b.id === m.id);
+                                      if (fromIdx < 0 || toIdx < 0) return bs;
+                                      const [moved] = n.splice(fromIdx, 1);
+                                      n.splice(toIdx, 0, moved);
+                                      return n;
+                                    });
+                                  }}>
+                                  {m.type==="image" && <img src={m.src} alt={m.name} style={{ width:"100%", borderRadius:"8px", objectFit:"contain", maxHeight:"300px", pointerEvents:"none" }} />}
                                   {m.type==="video" && <video src={m.src} controls style={{ width:"100%", borderRadius:"8px", maxHeight:"240px" }} />}
                                   <button type="button" onClick={()=>setBlocks(bs=>bs.filter(b=>b.id!==m.id))}
                                     style={{ position:"absolute", top:"6px", right:"6px", width:"24px", height:"24px", border:"none", borderRadius:"6px", background:"rgba(0,0,0,0.45)", color:"#fff", fontSize:"12px", cursor:"pointer" }}>✕</button>
+                                  <div style={{ position:"absolute", top:"6px", left:"6px", background:"rgba(0,0,0,0.3)", borderRadius:"4px", padding:"2px 6px", fontSize:"11px", color:"#fff" }}>⠿ 드래그</div>
                                 </div>
                               ))}
                               {/* 미디어 추가 버튼 */}
