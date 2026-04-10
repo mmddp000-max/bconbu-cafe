@@ -1,5 +1,60 @@
 import React, { useState, useEffect } from "react";
 
+/* ── SUPABASE ── */
+const SB_URL = "https://htkefzfngugwslmhtiee.supabase.co";
+const SB_KEY = "sb_publishable_Rq7-rlSt1CH6VjbSzuXQKQ_QRH4AVgR";
+
+const sbFetch = (path, opts = {}) =>
+  fetch(SB_URL + "/rest/v1/" + path, {
+    ...opts,
+    headers: {
+      "apikey": SB_KEY,
+      "Authorization": "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      "Prefer": opts.prefer || "",
+      ...(opts.headers || {}),
+    },
+  });
+
+const loadPosts = async () => {
+  const r = await sbFetch("posts?select=data&order=id.desc");
+  if (!r.ok) return [];
+  const rows = await r.json();
+  return rows.map(row => row.data);
+};
+
+const savePost = async (post) => {
+  const strip = p => ({
+    ...p,
+    blocks: p.blocks?.map(b => (b.type==="image"||b.type==="video") ? {...b, src:""} : b),
+    bBlocks: p.bBlocks?.map(b => (b.type==="image"||b.type==="video") ? {...b, src:""} : b),
+    images: [], videos: [],
+  });
+  await sbFetch("posts", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates",
+    headers: { "Prefer": "resolution=merge-duplicates" },
+    body: JSON.stringify({ id: post.id, data: strip(post) }),
+  });
+};
+
+const deletePost = async (id) => {
+  await sbFetch("posts?id=eq." + id, { method: "DELETE" });
+};
+
+const updatePost = async (post) => {
+  const strip = p => ({
+    ...p,
+    blocks: p.blocks?.map(b => (b.type==="image"||b.type==="video") ? {...b, src:""} : b),
+    bBlocks: p.bBlocks?.map(b => (b.type==="image"||b.type==="video") ? {...b, src:""} : b),
+    images: [], videos: [],
+  });
+  await sbFetch("posts?id=eq." + post.id, {
+    method: "PATCH",
+    body: JSON.stringify({ data: strip(post) }),
+  });
+};
+
 const CATEGORIES = [
   { id: "all",      label: "전체" },
   { id: "ai-trend", label: "AI 트렌드" },
@@ -669,6 +724,45 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
       >
         <div style={{ width:"100%", maxWidth:"720px", padding:"40px 24px 120px", position:"relative" }}>
 
+          {/* ── 서식 툴바 ── */}
+          <div style={{ display:"flex", gap:"4px", flexWrap:"wrap", marginBottom:"16px", padding:"8px 12px", background:"#F8F8F6", borderRadius:"10px", border:"1px solid #EAEAEA", alignItems:"center" }}>
+            <button type="button" title="굵게" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel=v.slice(s,e2);
+              if (sel) updateBlock(focusedId, v.slice(0,s)+"**"+sel+"**"+v.slice(e2));
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontWeight:700, fontSize:"13px", cursor:"pointer", color:"#333" }}>B</button>
+            <button type="button" title="기울임" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel=v.slice(s,e2);
+              if (sel) updateBlock(focusedId, v.slice(0,s)+"_"+sel+"_"+v.slice(e2));
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontStyle:"italic", fontSize:"13px", cursor:"pointer", color:"#333" }}>I</button>
+            <button type="button" title="밑줄" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel=v.slice(s,e2);
+              if (sel) updateBlock(focusedId, v.slice(0,s)+"<u>"+sel+"</u>"+v.slice(e2));
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", textDecoration:"underline", fontSize:"13px", cursor:"pointer", color:"#333" }}>U</button>
+            <div style={{ width:"1px", height:"20px", background:"#E0E0E0", margin:"0 4px" }} />
+            {[["S","13px"],["M","15px"],["L","18px"],["XL","22px"]].map(([lbl,sz]) => (
+              <button key={lbl} type="button" title={"글자 크기 "+lbl}
+                onClick={() => {
+                  const sizeMap={"S":"13px","M":"15px","L":"18px","XL":"22px"};
+                  setBlocks(bs => bs.map(b => b.id===focusedId ? {...b, fontSize:sizeMap[lbl]} : b));
+                }}
+                style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", padding:"0 7px", height:"28px", fontSize:"11px", fontWeight:600, cursor:"pointer", color:"#555" }}>{lbl}</button>
+            ))}
+            <div style={{ width:"1px", height:"20px", background:"#E0E0E0", margin:"0 4px" }} />
+            {[["left","◀"],["center","◆"],["right","▶"]].map(([align, ico]) => (
+              <button key={align} type="button" title={align+" 정렬"}
+                onClick={() => setBlocks(bs => bs.map(b => b.id===focusedId ? {...b, textAlign:align} : b))}
+                style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontSize:"11px", cursor:"pointer", color:"#555" }}>
+                {align==="left"?"≡":align==="center"?"≡":"≡"}
+              </button>
+            ))}
+          </div>
+
           {/* 날짜 + 작성자 */}
           <div style={{ display:"flex", gap:"12px", alignItems:"center", marginBottom:"20px" }}>
             <input value={date} onChange={e=>setDate(e.target.value)} style={{ border:"none", background:"none", fontSize:"14px", color:"#888", outline:"none", width:"80px" }} />
@@ -739,7 +833,7 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
                         onChange={e=>{ updateBlock(block.id,e.target.value); e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; }}
                         onKeyDown={e=>handleKeyDown(e,block)} onFocus={()=>setFocusedId(block.id)} onBlur={()=>setFocusedId(p=>p===block.id?null:p)}
                         placeholder="" rows={1}
-                        style={{ width:"100%", border:"none", background:"none", fontSize:"15px", lineHeight:1.9, color:"#333", outline:"none", resize:"none", padding:"2px 0", overflow:"hidden", minHeight:"28px", display:"block" }}
+                        style={{ width:"100%", border:"none", background:"none", fontSize:block.fontSize||"15px", lineHeight:1.9, color:"#333", outline:"none", resize:"none", padding:"2px 0", overflow:"hidden", minHeight:"28px", display:"block", textAlign:block.textAlign||"left" }}
                       />
                     )}
                     {block.type === "image" && (
@@ -2078,13 +2172,8 @@ function PasswordGate({ onEnter }) {
 /* ── APP ── */
 export default function App() {
   const [auth, setAuth]             = useState(() => sessionStorage.getItem("bconbu-auth") === "1");
-  const [posts, setPosts] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bconbu-posts");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return SAMPLE_POSTS;
-  });
+  const [posts, setPosts]   = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
   const [showWrite, setShowWrite]   = useState(false);
@@ -2094,32 +2183,54 @@ export default function App() {
   const [postPage, setPostPage]     = useState(null);
   const [bmOnly, setBmOnly]         = useState(false);
 
-  const handleLike = id => setPosts(ps => ps.map(p =>
-    p.id === id ? { ...p, liked:!p.liked, likes:p.liked ? p.likes-1 : p.likes+1 } : p
-  ));
-  const handleBookmark = id => setPosts(ps => ps.map(p =>
-    p.id === id ? { ...p, bookmarked:!p.bookmarked } : p
-  ));
-  const handleAdd = post => setPosts(ps => [post, ...ps]);
+  const handleLike = async (id) => {
+    setPosts(ps => {
+      const updated = ps.map(p => p.id === id ? { ...p, liked:!p.liked, likes:p.liked ? p.likes-1 : p.likes+1 } : p);
+      const changed = updated.find(p => p.id === id);
+      if (changed) updatePost(changed);
+      return updated;
+    });
+  };
+  const handleBookmark = async (id) => {
+    setPosts(ps => {
+      const updated = ps.map(p => p.id === id ? { ...p, bookmarked:!p.bookmarked } : p);
+      const changed = updated.find(p => p.id === id);
+      if (changed) updatePost(changed);
+      return updated;
+    });
+  };
+  const handleAdd = async (post) => {
+    setPosts(ps => [post, ...ps]);
+    await savePost(post);
+  };
   const handleEdit = (post) => { setEditPost(post); setShowWrite(true); };
-  const handleUpdate = (updated) => {
+  const handleUpdate = async (updated) => {
     setPosts(ps => ps.map(p => p.id === updated.id ? updated : p));
     setEditPost(null);
+    await updatePost(updated);
   };
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("이 카드를 삭제할까요?")) return;
     setPosts(ps => ps.filter(p => p.id !== id));
     setDetail(null);
+    setPostPage(null);
+    await deletePost(id);
   };
   const handleAddComment = (postId, comment) => {
-    setPosts(ps => ps.map(p =>
-      p.id === postId ? { ...p, comments: [...(p.comments||[]), comment] } : p
-    ));
+    setPosts(ps => {
+      const updated = ps.map(p => p.id === postId ? { ...p, comments: [...(p.comments||[]), comment] } : p);
+      const changed = updated.find(p => p.id === postId);
+      if (changed) updatePost(changed);
+      return updated;
+    });
   };
   const handleDeleteComment = (postId, commentId) => {
-    setPosts(ps => ps.map(p =>
-      p.id === postId ? { ...p, comments: (p.comments||[]).filter(c => c.id !== commentId) } : p
-    ));
+    setPosts(ps => {
+      const updated = ps.map(p => p.id === postId ? { ...p, comments: (p.comments||[]).filter(c => c.id !== commentId) } : p);
+      const changed = updated.find(p => p.id === postId);
+      if (changed) updatePost(changed);
+      return updated;
+    });
   };
 
   // keep detail in sync
@@ -2128,27 +2239,16 @@ export default function App() {
     if (postPage) setPostPage(posts.find(p => p.id === postPage.id) || null);
   }, [posts]);
 
-  // posts 변경 시 localStorage에 저장
+  // 앱 시작 시 Supabase에서 글 불러오기
   useEffect(() => {
-    try {
-      // 이미지/영상 src는 용량이 크므로 제외하고 저장
-      // 이미지/영상은 용량이 크므로 src 제거, 파일(base64)은 유지
-      const toSave = posts.map(p => ({
-        ...p,
-        blocks: p.blocks?.map(b =>
-          (b.type === "image" || b.type === "video") ? { ...b, src: "" } : b
-        ),
-        bBlocks: p.bBlocks?.map(b =>
-          (b.type === "image" || b.type === "video") ? { ...b, src: "" } : b
-        ),
-        images: [],
-        videos: [],
-      }));
-      localStorage.setItem("bconbu-posts", JSON.stringify(toSave));
-    } catch(e) {
-      console.warn("저장 실패:", e);
-    }
-  }, [posts]);
+    setLoading(true);
+    loadPosts().then(data => {
+      setPosts(data);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+  }, []);
 
   const filtered = posts.filter(p => {
     const catOk    = activeCat === "all" || p.category === activeCat;
@@ -2161,6 +2261,16 @@ export default function App() {
 
   if (!auth) {
     return <PasswordGate onEnter={() => { sessionStorage.setItem("bconbu-auth","1"); setAuth(true); }} />;
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px", background:"#F5F5F3", fontFamily:"'Pretendard', sans-serif" }}>
+        <G />
+        <div style={{ fontSize:"32px" }}>🐹</div>
+        <p style={{ fontSize:"15px", color:"#888", fontWeight:500 }}>글 불러오는 중...</p>
+      </div>
+    );
   }
 
   if (postPage) {
@@ -2216,7 +2326,7 @@ export default function App() {
         borderBottom:"1px solid #EAEAEA",
       }}>
         <div style={{
-          maxWidth:"1020px", margin:"0 auto", padding:"0 24px",
+          maxWidth:"760px", margin:"0 auto", padding:"0 24px",
           height:"62px", display:"flex", alignItems:"center", justifyContent:"space-between",
         }}>
           <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
@@ -2300,7 +2410,7 @@ export default function App() {
 
       {/* TABS */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EAEAEA", position:"sticky", top:"62px", zIndex:40 }}>
-        <div style={{ maxWidth:"1020px", margin:"0 auto", padding:"0 24px", display:"flex", gap:"2px", overflowX:"auto" }}>
+        <div style={{ maxWidth:"760px", margin:"0 auto", padding:"0 24px", display:"flex", gap:"2px", overflowX:"auto" }}>
           {CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setActiveCat(cat.id)} style={{
               padding:"15px 18px", border:"none", background:"none",
@@ -2322,7 +2432,7 @@ export default function App() {
       </div>
 
       {/* MAIN */}
-      <main style={{ maxWidth:"1020px", margin:"0 auto", padding:"30px 24px 80px" }}>
+      <main style={{ maxWidth:"760px", margin:"0 auto", padding:"30px 24px 80px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"18px" }}>
           <p style={{ fontSize:"13px", color:"#AAAAAA", fontWeight:500 }}>
             {bmOnly ? `저장된 카드 ${filtered.length}개` : `총 ${filtered.length}개`}
@@ -2343,7 +2453,7 @@ export default function App() {
             </p>
           </div>
         ) : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(290px, 1fr))", gap:"18px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))", gap:"18px" }}>
             {filtered.map((post, i) => (
               <NewsCard key={post.id} post={post} index={i}
                 onClick={() => setPostPage(post)}
