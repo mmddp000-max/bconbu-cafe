@@ -1091,9 +1091,7 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           model:"claude-sonnet-4-20250514", max_tokens:1000,
-          messages:[{ role:"user", content:`AI 팀 뉴스레터. 카테고리:[${catLabel}] 제목:"${title}"
-JSON만 반환:
-{"body":"200~280자 본문(개행가능)","emoji":"이모지1개","tag":"태그(공백없이)"}` }],
+          messages:[{ role:"user", content:`AI 팀 뉴스레터. 카테고리:[${catLabel}] 제목:"${title}"JSON만 반환:{"body":"200~280자 본문(개행가능)","emoji":"이모지1개","tag":"태그(공백없이)"}` }],
         }),
       });
       const data = await resp.json();
@@ -1687,9 +1685,7 @@ function AIGenModal({ onClose, onAdd }) {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           model:"claude-sonnet-4-20250514", max_tokens:1000,
-          messages:[{ role:"user", content:`AI 팀 뉴스레터. 카테고리:[${catLabel}] 주제:"${topic}"
-JSON만 반환:
-{"title":"30자이내 제목","summary":"80~100자 요약","body":"200~250자 본문(개행가능)","emoji":"이모지1개","tag":"태그(공백없이)"}` }],
+          messages:[{ role:"user", content:`AI 팀 뉴스레터. 카테고리:[${catLabel}] 주제:"${topic}"JSON만 반환:{"title":"30자이내 제목","summary":"80~100자 요약","body":"200~250자 본문(개행가능)","emoji":"이모지1개","tag":"태그(공백없이)"}` }],
         }),
       });
       const data = await resp.json();
