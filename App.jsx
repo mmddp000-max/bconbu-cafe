@@ -2441,6 +2441,6 @@ export default function App() {
         <span style={{ margin:"0 10px" }}>·</span>
         브콘부 물류창고 · {new Date().getFullYear()}
       </footer>
-    </div>
+    </>
   );
 }
