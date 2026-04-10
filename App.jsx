@@ -13,104 +13,57 @@ const CAT_STYLE = {
   source:     { bg: "#EEF2FF", text: "#4338CA", border: "#C7D2FE" },
 };
 
-/* ── 텍스트 렌더 (URL 자동링크 + 마크다운 링크 → HTML) ── */
+/* ── 텍스트 렌더 ── */
 const renderText = (text) => {
-  const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  // 마크다운 [텍스트](URL) 형식
-  const MDLINK = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-  // 단순 URL 자동 감지 (앞에 [( 없는 것만)
-  const AUTOURL = /(?<!\[.*?\]\(|href=["'])(https?:\/\/[^\s<>"'\)]+)/g;
-  const ALINK = '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#4338CA;text-decoration:underline;font-weight:500;">$1</a>';
-  return escaped
-    .replace(MDLINK, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#4338CA;text-decoration:underline;font-weight:500;">$1</a>')
-    .replace(AUTOURL, ALINK)
-    .replace(/\n/g, "<br/>");
+  if (!text) return "";
+  const L = "color:#4338CA;text-decoration:underline;font-weight:500;";
+  const esc = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const lines = esc.split(String.fromCharCode(10));
+  const out = lines.map(function(line) {
+    var res = "";
+    var i = 0;
+    while (i < line.length) {
+      if (line[i]==="*" && line[i+1]==="*") {
+        var end = line.indexOf("**", i+2);
+        if (end > i+1) { res += "<strong>"+line.slice(i+2,end)+"</strong>"; i=end+2; continue; }
+      }
+      if (line[i]==="_") {
+        var end2 = line.indexOf("_", i+1);
+        if (end2 > i) { res += "<em>"+line.slice(i+1,end2)+"</em>"; i=end2+1; continue; }
+      }
+      if (line.slice(i,i+8)==="&lt;u&gt;") {
+        var end3 = line.indexOf("&lt;/u&gt;", i+8);
+        if (end3 > i) { res += "<u>"+line.slice(i+8,end3)+"</u>"; i=end3+10; continue; }
+      }
+      if (line[i]==="[") {
+        var cb = line.indexOf("]", i+1);
+        if (cb>i && line[cb+1]==="(" ) {
+          var cp = line.indexOf(")", cb+2);
+          if (cp>cb) {
+            var lb=line.slice(i+1,cb), url=line.slice(cb+2,cp);
+            if (url.startsWith("http")) { res+='<a href="'+url+'" target="_blank" rel="noopener noreferrer" style="'+L+'">'+lb+'</a>'; i=cp+1; continue; }
+          }
+        }
+      }
+      if (line.slice(i,i+4)==="http") {
+        var sp = line.slice(i).search(new RegExp("[\\s<>]"));
+        var end4 = sp===-1 ? line.length : i+sp;
+        var urlStr = line.slice(i,end4);
+        if (urlStr.startsWith("http")) { res+='<a href="'+urlStr+'" target="_blank" rel="noopener noreferrer" style="'+L+'">'+urlStr+'</a>'; i=end4; continue; }
+      }
+      res += line[i]; i++;
+    }
+    return res;
+  });
+  return out.join("<br/>");
 };
-
-
 const TEAM_MEMBERS = [
   "김도호","공정호","김준완","정소이","임재희",
   "한소희","김하란","권민주","서이도","이유진",
   "한지수","김혜영",
 ];
 
-const SAMPLE_POSTS = [
-  {
-    id:1, category:"ai-trend", categoryLabel:"AI 트렌드",
-    title:"GPT-5 출시 임박, OpenAI의 다음 스텝은?",
-    summary:"OpenAI가 차세대 모델 GPT-5의 출시를 준비 중입니다. 추론 능력과 멀티모달 처리 성능이 대폭 향상될 것으로 예상되며, 업계 전반에 미칠 파급효과를 분석합니다.",
-    body:"GPT-5는 기존 GPT-4 대비 추론 능력이 40% 이상 향상된 것으로 알려졌습니다. 특히 복잡한 수학 문제 풀이, 멀티스텝 논리 추론, 실시간 웹 검색 통합 기능이 크게 강화될 예정입니다.\n\n업계 관계자들은 GPT-5가 단순한 챗봇 수준을 넘어 '에이전트형 AI'로 진화하는 중요한 이정표가 될 것이라 평가하고 있습니다. 코드 생성부터 복잡한 비즈니스 의사결정 지원까지, 실제 업무 현장에서의 활용 가능성이 크게 확대될 전망입니다.",
-    date:"2026.04.09", emoji:"🤖", tag:"GPT-5", url:"https://openai.com",
-    author:"김지수", likes:24, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:2, category:"b-letter", categoryLabel:"B레터",
-    title:"AI 시대, 비즈니스 모델을 어떻게 재설계할 것인가",
-    summary:"AI 도입이 가속화되면서 전통적인 SaaS 비즈니스 모델이 흔들리고 있습니다. 새로운 수익 구조와 고객 가치 제안 방식에 대한 실전 인사이트를 공유합니다.",
-    body:"구독 기반 SaaS에서 '결과 기반 과금(Outcome-based pricing)'으로의 전환이 빠르게 진행되고 있습니다. AI가 실제 업무 성과를 직접 만들어낼 수 있게 되면서, 고객들은 이제 '도구값'이 아닌 '결과값'에 돈을 지불하려는 경향이 강해지고 있습니다.\n\n실제로 Salesforce, HubSpot 등 주요 SaaS 기업들은 이미 AI 에이전트 기반의 새로운 과금 모델을 실험 중입니다. 우리 팀도 제품/서비스 제안 방식을 점검해볼 타이밍입니다.",
-    date:"2026.04.07", emoji:"💼", tag:"비즈니스전략", url:"",
-    author:"박민준", likes:18, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:3, category:"source", categoryLabel:"소스 공유",
-    title:"Claude API로 팀 내부 챗봇 만들기 - 실전 가이드",
-    summary:"Anthropic의 Claude API를 활용해 사내 지식베이스 기반 챗봇을 구축하는 방법을 단계별로 설명합니다. RAG 구조부터 배포까지 전 과정을 담았습니다.",
-    body:"RAG(Retrieval-Augmented Generation)는 사내 문서를 AI가 참고하며 답변하게 만드는 핵심 기술입니다. Claude API + Pinecone(벡터DB) + 사내 Notion/Confluence 연동으로 구축할 수 있습니다.\n\n비용은 월 $20~50 수준으로 시작 가능하며, 팀 규모 20명 기준 하루 평균 2시간의 정보 탐색 시간을 절약할 수 있는 것으로 보고되고 있습니다.",
-    date:"2026.04.05", emoji:"🔧", tag:"ClaudeAPI", url:"https://docs.anthropic.com",
-    author:"이하은", likes:31, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:4, category:"ai-trend", categoryLabel:"AI 트렌드",
-    title:"Gemini 2.5 Pro 등장 — 구글이 판을 뒤집다",
-    summary:"구글 딥마인드가 공개한 Gemini 2.5 Pro가 주요 벤치마크에서 최상위권을 기록했습니다. 코딩·수학·추론 능력 향상이 두드러지며 경쟁 구도가 급변하고 있습니다.",
-    body:"Gemini 2.5 Pro는 MMLU, HumanEval 등 주요 AI 평가 지표에서 GPT-4o를 상회하는 성능을 기록했습니다. 특히 100만 토큰의 컨텍스트 윈도우는 긴 문서 처리에 독보적인 강점을 보여줍니다.\n\n구글은 Workspace(Gmail, Docs, Sheets)와의 깊은 통합을 통해 기업 시장 공략을 가속화하고 있습니다.",
-    date:"2026.04.03", emoji:"💎", tag:"Gemini", url:"https://deepmind.google",
-    author:"최준혁", likes:15, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:5, category:"b-letter", categoryLabel:"B레터",
-    title:"AI 툴 도입 시 팀 저항을 줄이는 5가지 방법",
-    summary:"새로운 AI 툴 도입 과정에서 팀원들의 거부감을 최소화하고 실제 사용률을 높이는 조직문화적 접근 방식을 소개합니다. 실제 사례 중심으로 정리했습니다.",
-    body:"1. 강요 대신 '위클리 AI 쇼케이스'로 자발적 흥미 유발\n2. 가장 반복적인 업무 하나만 먼저 자동화해서 효과 체감\n3. 얼리어답터를 내부 챔피언으로 지정해 동료 교육\n4. 실패해도 괜찮은 심리적 안전감 확보 (샌드박스 환경 제공)\n5. 성과를 숫자로 보여주기 (절약된 시간, 처리 건수)\n\n결국 중요한 건 '도구'가 아니라 '성공 경험'입니다.",
-    date:"2026.04.01", emoji:"🌱", tag:"조직문화", url:"",
-    author:"김지수", likes:22, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:6, category:"source", categoryLabel:"소스 공유",
-    title:"무료로 쓸 수 있는 AI 생산성 툴 모음 2026",
-    summary:"무료 또는 프리미엄 플랜이 넉넉한 AI 툴을 카테고리별로 정리했습니다. 글쓰기, 이미지, 코딩, 데이터 분석 분야별 추천 툴과 사용 팁을 함께 제공합니다.",
-    body:"✍️ 글쓰기: Claude.ai (무료), Notion AI (플랜 포함)\n🎨 이미지: Adobe Firefly (크레딧 제공), Ideogram (무료)\n💻 코딩: GitHub Copilot (학생 무료), Cursor (제한적 무료)\n📊 데이터: Julius AI (일 5회 무료), ChatGPT Code Interpreter\n\n유료 전환 시 ROI가 가장 높은 툴은 코딩 보조 AI(평균 40% 생산성 향상)와 회의 요약 AI(평균 회의당 15분 절약)로 집계되고 있습니다.",
-    date:"2026.03.29", emoji:"🎁", tag:"무료툴", url:"",
-    author:"박민준", likes:37, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:7, category:"ai-trend", categoryLabel:"AI 트렌드",
-    title:"에이전트 AI의 시대 — 자율 작업 처리의 현주소",
-    summary:"단순 질답을 넘어 복잡한 작업을 자율적으로 처리하는 AI 에이전트 기술이 빠르게 발전하고 있습니다. 현재 수준과 실제 업무 적용 가능성을 점검합니다.",
-    body:"AI 에이전트는 '목표'를 주면 스스로 계획 수립 → 도구 사용 → 실행 → 검토까지 수행하는 시스템입니다. 현재 Devin(코딩 에이전트), Manus(범용 에이전트) 등이 실제 업무에 투입되고 있습니다.\n\n다만 아직 '신뢰성' 문제가 과제입니다. 현재 실무 적용 가이드는 '사람 루프(Human-in-the-loop)'를 포함한 반자율 방식이 가장 현실적입니다.",
-    date:"2026.03.26", emoji:"🚀", tag:"AI에이전트", url:"",
-    author:"이하은", likes:19, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:8, category:"b-letter", categoryLabel:"B레터",
-    title:"AI 보고서 작성 자동화 — 우리 팀 실험 후기",
-    summary:"주간 KPI 보고서를 AI로 자동화한 3개월간의 팀 실험 결과를 공유합니다. 시간 절약 효과, 예상치 못한 문제점, 그리고 현재 운영 방식까지 솔직하게 담았습니다.",
-    body:"3개월 전 주간 KPI 보고서 초안 작성을 Claude에게 맡기기 시작했습니다. 결과적으로 1인당 주당 약 2.5시간을 절약했고, 보고서 품질도 오히려 상향 평준화됐습니다.\n\n예상치 못한 문제: 데이터를 복붙할 때 형식이 달라 AI가 잘못 해석하는 경우가 종종 발생했습니다. 해결책은 Google Sheets → CSV 내보내기 → 프롬프트에 붙여넣기 루틴을 팀 표준으로 정하는 것이었습니다.",
-    date:"2026.03.22", emoji:"📊", tag:"업무자동화", url:"",
-    author:"최준혁", likes:28, bookmarked:false, liked:false, comments:[],
-  },
-  {
-    id:9, category:"source", categoryLabel:"소스 공유",
-    title:"프롬프트 엔지니어링 패턴 치트시트",
-    summary:"Chain-of-thought, Few-shot, Role prompting 등 자주 쓰는 프롬프트 기법을 한 장에 정리했습니다. 복사해서 바로 활용할 수 있는 템플릿도 포함되어 있습니다.",
-    body:"📌 Chain-of-thought: '단계별로 생각해줘'를 붙이면 논리적 오류가 크게 줄어듭니다.\n📌 Few-shot: 예시 2~3개를 먼저 보여주면 원하는 형식 그대로 출력합니다.\n📌 Role prompting: '당신은 10년 경력의 UX 디자이너입니다'처럼 역할을 부여하면 전문성이 올라갑니다.\n📌 Output formatting: 'JSON으로만 출력해줘', '마크다운 금지'처럼 출력 형식을 명확히 지정하세요.",
-    date:"2026.03.18", emoji:"📋", tag:"프롬프트", url:"https://www.promptingguide.ai",
-    author:"김지수", likes:44, bookmarked:false, liked:false, comments:[],
-  },
-];
+const SAMPLE_POSTS = [];
 
 /* ── GLOBAL STYLES ── */
 const G = () => (
@@ -260,7 +213,7 @@ function DetailModal({ post, onClose, onLike, onBookmark, onEdit, onDelete, onAd
                 <>
                   {sectionHead("🎬","콘텐츠 소식")}
                   {post.contents.map((item,i) => {
-                    const ytMatch = item.url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+        var ytId = null; if (item.url) { var ytm = item.url.indexOf("youtube.com/watch?v="); if(ytm>-1){ytId=item.url.slice(ytm+20).split("&")[0].split(" ")[0];} else { var ytb=item.url.indexOf("youtu.be/"); if(ytb>-1)ytId=item.url.slice(ytb+9).split("?")[0].split(" ")[0]; } } var ytMatch = ytId ? [null, ytId] : null;
                     return (
                       <div key={i} style={{ marginBottom:"16px", padding:"16px", background:"#FAFAFA", borderRadius:"12px" }}>
                         <p style={{ fontSize:"14px", fontWeight:700, color:"#111", marginBottom:"10px" }}>{item.title}</p>
@@ -547,322 +500,284 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
   const today = new Date().toLocaleDateString("ko-KR", { year:"2-digit", month:"2-digit", day:"2-digit" })
     .replace(/\. /g, ".").replace(/\.$/, "");
 
-  const [author,   setAuthor]   = useState(editPost?.author   || "");
-  const [date,     setDate]     = useState(editPost?.bDate    || today);
-  const [errors,   setErrors]   = useState({});
+  const B_SECTIONS = [
+    { id:"industry", label:"업계 소식",   emoji:"📰", color:"#D97706" },
+    { id:"content",  label:"콘텐츠 소식", emoji:"🎬", color:"#7C3AED" },
+    { id:"trend",    label:"트렌드 소식", emoji:"📈", color:"#059669" },
+    { id:"request",  label:"제작 요청",   emoji:"✏️",  color:"#2563EB" },
+  ];
 
-  // 업계 소식 리스트
-  const [industry, setIndustry] = useState(editPost?.industry || [
-    { id: Date.now(), title:"", url:"", bullets:[""] }
-  ]);
-  // 콘텐츠 소식 리스트
-  const [contents, setContents] = useState(editPost?.contents || [
-    { id: Date.now()+1, title:"", url:"", desc:"" }
-  ]);
+  const initBlocks = () => {
+    if (editPost?.bBlocks?.length) return editPost.bBlocks;
+    // 각 섹션 헤더 + 빈 텍스트 블록으로 초기화
+    const blocks = [];
+    B_SECTIONS.forEach(s => {
+      blocks.push({ id: Date.now() + Math.random(), type:"section", sectionId: s.id });
+      blocks.push({ id: Date.now() + Math.random(), type:"text",    content:"" });
+    });
+    return blocks;
+  };
 
-  /* 업계소식 조작 */
-  const addIndustry = () =>
-    setIndustry(prev => [...prev, { id:Date.now(), title:"", url:"", bullets:[""] }]);
-  const removeIndustry = (id) =>
-    setIndustry(prev => prev.filter(i => i.id !== id));
-  const updateIndustry = (id, key, val) =>
-    setIndustry(prev => prev.map(i => i.id === id ? { ...i, [key]:val } : i));
-  const addBullet = (id) =>
-    setIndustry(prev => prev.map(i => i.id === id ? { ...i, bullets:[...i.bullets, ""] } : i));
-  const updateBullet = (id, idx, val) =>
-    setIndustry(prev => prev.map(i => i.id === id ? { ...i, bullets:i.bullets.map((b,bi) => bi===idx ? val : b) } : i));
-  const removeBullet = (id, idx) =>
-    setIndustry(prev => prev.map(i => i.id === id ? { ...i, bullets:i.bullets.filter((_,bi) => bi!==idx) } : i));
+  const [author,    setAuthor]    = useState(editPost?.author || "");
+  const [date,      setDate]      = useState(editPost?.bDate  || today);
+  const [blocks,    setBlocks]    = useState(initBlocks);
+  const [errors,    setErrors]    = useState({});
+  const [focusedId, setFocusedId] = useState(null);
+  const [dragState, setDragState] = useState({ dragId:null, overIdx:null });
 
-  /* 콘텐츠소식 조작 */
-  const addContent = () =>
-    setContents(prev => [...prev, { id:Date.now(), title:"", url:"", desc:"" }]);
-  const removeContent = (id) =>
-    setContents(prev => prev.filter(c => c.id !== id));
-  const updateContent = (id, key, val) =>
-    setContents(prev => prev.map(c => c.id === id ? { ...c, [key]:val } : c));
+  const imgRef           = React.useRef();
+  const vidRef           = React.useRef();
+  const fileRef          = React.useRef();
+  const insertAfterIdRef = React.useRef(null);
+  const textareaRefs     = React.useRef({});
+  const editorRef        = React.useRef();
+  const dragRef          = React.useRef({ id:null, fromIdx:null, overIdx:null });
+
+  // 첫 포커스
+  useEffect(() => {
+    const firstText = blocks.find(b => b.type === "text");
+    if (firstText) setTimeout(() => textareaRefs.current[firstText.id]?.focus(), 80);
+  }, []);
+
+  const updateBlock = (id, val) =>
+    setBlocks(bs => bs.map(b => b.id === id ? { ...b, content: val } : b));
+  const removeBlock = (id) =>
+    setBlocks(bs => { const n = bs.filter(b => b.id !== id); return n.length ? n : [{ id:Date.now(), type:"text", content:"" }]; });
+
+  const handleKeyDown = (e, block) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const ta = textareaRefs.current[block.id];
+      const start = ta?.selectionStart ?? block.content.length;
+      const newId = Date.now();
+      setBlocks(bs => {
+        const idx = bs.findIndex(b => b.id === block.id);
+        const n = [...bs];
+        n[idx] = { ...block, content: block.content.slice(0, start) };
+        n.splice(idx + 1, 0, { id: newId, type:"text", content: block.content.slice(start) });
+        return n;
+      });
+      setTimeout(() => { const t = textareaRefs.current[newId]; if(t){t.focus();t.setSelectionRange(0,0);} }, 20);
+    }
+    if (e.key === "Backspace" && block.content === "") {
+      e.preventDefault();
+      setBlocks(bs => {
+        const idx = bs.findIndex(b => b.id === block.id);
+        if (bs.length === 1) return bs;
+        const n = bs.filter(b => b.id !== block.id);
+        const prevId = n[Math.max(0, idx-1)]?.id;
+        setTimeout(() => { const t = textareaRefs.current[prevId]; if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);} }, 20);
+        return n;
+      });
+    }
+  };
+
+  const insertMedia = (newBlocks) => {
+    setBlocks(bs => {
+      const afterId = insertAfterIdRef.current ?? focusedId ?? bs[bs.length-1]?.id;
+      const idx = afterId ? bs.findIndex(b => b.id === afterId) : bs.length-1;
+      const n = [...bs];
+      n.splice(idx+1, 0, ...newBlocks, { id:Date.now()+9999, type:"text", content:"" });
+      return n;
+    });
+    insertAfterIdRef.current = null;
+    setTimeout(() => { const all = Object.values(textareaRefs.current).filter(Boolean); all[all.length-1]?.focus(); }, 50);
+  };
+
+  const handleImageFiles = e => {
+    Promise.all(Array.from(e.target.files).map(f => new Promise(res => {
+      const r = new FileReader(); r.onload = () => res({ id:Date.now()+Math.random(), type:"image", src:r.result, name:f.name }); r.readAsDataURL(f);
+    }))).then(insertMedia); e.target.value = "";
+  };
+  const handleVideoFiles = e => {
+    Promise.all(Array.from(e.target.files).map(f => new Promise(res => {
+      const r = new FileReader(); r.onload = () => res({ id:Date.now()+Math.random(), type:"video", src:r.result, name:f.name }); r.readAsDataURL(f);
+    }))).then(insertMedia); e.target.value = "";
+  };
+  const handleFileAttach = e => {
+    insertMedia(Array.from(e.target.files).map(f => ({ id:Date.now()+Math.random(), type:"file", name:f.name, size:f.size, mime:f.type||"application/octet-stream", src:URL.createObjectURL(f) })));
+    e.target.value = "";
+  };
+  const handleEditorDrop = e => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!files.length) return;
+    Promise.all(files.map(f => new Promise(res => {
+      const r = new FileReader(); const t = f.type.startsWith("image/") ? "image" : "video";
+      r.onload = () => res({ id:Date.now()+Math.random(), type:t, src:r.result, name:f.name }); r.readAsDataURL(f);
+    }))).then(insertMedia);
+  };
 
   const handleSubmit = () => {
     const e = {};
     if (!author.trim()) e.author = "작성자를 선택해주세요";
     if (Object.keys(e).length) { setErrors(e); return; }
-
-    // 본문 텍스트 생성 (카드 요약용)
-    const summaryText = industry.map(i => i.title).filter(Boolean).join(", ");
-
+    const textBody = blocks.filter(b => b.type === "text").map(b => b.content).join("\n\n");
     onSubmit({
-      id:        editPost?.id || Date.now(),
-      category:  "b-letter",
-      categoryLabel: "B레터",
-      title:     `B레터 ${date}`,
-      emoji:     "📰",
-      tag:       "B레터",
-      author,
-      date,
-      bDate:     date,
-      industry,
-      contents,
-      body:      summaryText,
-      summary:   summaryText.slice(0,80) + (summaryText.length>80?"...":""),
-      blocks:    [],
-      url:       "",
-      likes:     editPost?.likes     || 0,
-      bookmarked:editPost?.bookmarked|| false,
-      liked:     editPost?.liked     || false,
-      comments:  editPost?.comments  || [],
+      id: editPost?.id || Date.now(),
+      category:"b-letter", categoryLabel:"B레터",
+      title:`B레터 ${date}`, emoji:"📰", tag:"B레터",
+      author, date, bDate:date, bBlocks:blocks,
+      body:textBody,
+      summary:textBody.slice(0,80) + (textBody.length>80?"...":""),
+      blocks:[], images:[], videos:[], url:"",
+      likes:editPost?.likes||0, bookmarked:editPost?.bookmarked||false,
+      liked:editPost?.liked||false, comments:editPost?.comments||[],
     });
     onClose();
   };
 
-  const sectionTitle = (icon, text) => (
-    <div style={{ display:"flex", alignItems:"center", gap:"8px", margin:"28px 0 16px" }}>
-      <div style={{ flex:1, height:"1px", background:"#E8E8E8" }} />
-      <div style={{
-        padding:"6px 18px", borderRadius:"999px",
-        border:"2px solid #111", background:"#fff",
-        fontSize:"13px", fontWeight:700, color:"#111", whiteSpace:"nowrap",
-      }}>{icon} {text}</div>
-      <div style={{ flex:1, height:"1px", background:"#E8E8E8" }} />
-    </div>
-  );
-
   return (
-    <div style={{
-      position:"relative", minHeight:"100vh", background:"#fff",
-      display:"flex", flexDirection:"column",
-      fontFamily:"'Pretendard', -apple-system, sans-serif",
-    }}>
+    <div style={{ position:"relative", minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", fontFamily:"'Pretendard', -apple-system, sans-serif" }}>
+      <input ref={imgRef}  type="file" accept="image/*" multiple onChange={handleImageFiles}  style={{ display:"none" }} />
+      <input ref={vidRef}  type="file" accept="video/*" multiple onChange={handleVideoFiles}  style={{ display:"none" }} />
+      <input ref={fileRef} type="file" multiple          onChange={handleFileAttach}           style={{ display:"none" }} />
+
       {/* 툴바 */}
-      <div style={{
-        background:"#fff", borderBottom:"1px solid #EAEAEA",
-        padding:"0 24px", height:"56px",
-        display:"flex", alignItems:"center", justifyContent:"space-between",
-        position:"sticky", top:0, zIndex:10, flexShrink:0,
-      }}>
+      <div style={{ background:"#fff", borderBottom:"1px solid #EAEAEA", padding:"0 24px", height:"56px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:10, flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:"16px" }}>
-          <button type="button" onClick={onClose} style={{
-            border:"none", background:"none", cursor:"pointer",
-            fontSize:"20px", color:"#888", padding:"4px",
-          }}>←</button>
-          <span style={{ fontSize:"15px", fontWeight:700, color:"#111" }}>
-            {editPost ? "✏️ B레터 수정" : "📰 B레터 작성"}
-          </span>
+          <button type="button" onClick={onClose} style={{ border:"none", background:"none", cursor:"pointer", fontSize:"20px", color:"#888", padding:"4px" }}>←</button>
+          <span style={{ fontSize:"15px", fontWeight:700, color:"#111" }}>{editPost ? "✏️ B레터 수정" : "📰 B레터 작성"}</span>
         </div>
-        <button type="button" onClick={handleSubmit} style={{
-          padding:"8px 20px", borderRadius:"9px", border:"none",
-          background:"#D97706", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer",
-        }}>{editPost ? "수정 완료 →" : "등록하기 →"}</button>
+        <div style={{ display:"flex", gap:"8px" }}>
+          <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; imgRef.current.click(); }} style={{ padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer" }}>🖼️ 사진</button>
+          <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; vidRef.current.click(); }} style={{ padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer" }}>🎬 영상</button>
+          <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; fileRef.current.click(); }} style={{ padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer" }}>📎 파일</button>
+          <button type="button" onClick={handleSubmit} style={{ padding:"8px 20px", borderRadius:"9px", border:"none", background:"#D97706", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>{editPost ? "수정 완료 →" : "등록하기 →"}</button>
+        </div>
       </div>
 
-      {/* 폼 본체 */}
-      <div style={{ flex:1, overflowY:"auto", display:"flex", justifyContent:"center" }}>
-        <div style={{ width:"100%", maxWidth:"680px", padding:"36px 24px 100px" }}>
+      {/* 에디터 */}
+      <div ref={editorRef} style={{ flex:1, overflowY:"auto", display:"flex", justifyContent:"center" }} onDragOver={e=>e.preventDefault()} onDrop={handleEditorDrop}
+        onPaste={e => {
+          const items = Array.from(e.clipboardData?.items || []);
+          const imageItems = items.filter(item => item.type.startsWith("image/"));
+          if (imageItems.length === 0) return;
+          e.preventDefault();
+          Promise.all(imageItems.map(item => new Promise(res => {
+            const file = item.getAsFile(); if (!file) return res(null);
+            const r = new FileReader();
+            r.onload = () => res({ id:Date.now()+Math.random(), type:"image", src:r.result, name:`붙여넣기_${Date.now()}.png` });
+            r.readAsDataURL(file);
+          }))).then(newBlocks => { const valid = newBlocks.filter(Boolean); if (valid.length) insertMedia(valid); });
+        }}
+      >
+        <div style={{ width:"100%", maxWidth:"720px", padding:"40px 24px 120px", position:"relative" }}>
 
           {/* 날짜 + 작성자 */}
-          <div style={{ display:"flex", gap:"12px", alignItems:"center", marginBottom:"8px" }}>
-            <input value={date} onChange={e => setDate(e.target.value)}
-              style={{
-                border:"none", background:"none", fontSize:"15px", fontWeight:500,
-                color:"#888", outline:"none", textAlign:"center", width:"90px",
-              }} />
+          <div style={{ display:"flex", gap:"12px", alignItems:"center", marginBottom:"20px" }}>
+            <input value={date} onChange={e=>setDate(e.target.value)} style={{ border:"none", background:"none", fontSize:"14px", color:"#888", outline:"none", width:"80px" }} />
             <div style={{ width:"1px", height:"16px", background:"#E8E8E8" }} />
-            <select value={author} onChange={e => setAuthor(e.target.value)}
-              style={{
-                border:"none", background:"none", fontSize:"13px",
-                color: author ? "#333" : "#AAAAAA",
-                outline:"none", cursor:"pointer", appearance:"none", WebkitAppearance:"none",
-              }}>
+            <select value={author} onChange={e=>setAuthor(e.target.value)} style={{ border:"none", background:"none", fontSize:"13px", color:author?"#333":"#AAAAAA", outline:"none", cursor:"pointer", appearance:"none", WebkitAppearance:"none" }}>
               <option value="" disabled>작성자 선택</option>
               {TEAM_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
             {errors.author && <span style={{ fontSize:"12px", color:"#FF6B6B" }}>{errors.author}</span>}
           </div>
+          <div style={{ height:"1px", background:"#F0F0F0", marginBottom:"24px" }} />
 
-          <div style={{ height:"1px", background:"#F0F0F0", marginBottom:"4px" }} />
+          {/* 블록 목록 */}
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {blocks.map((block, idx) => {
+              const isDragging = dragState.dragId === block.id;
+              const isOver = dragState.overIdx === idx && dragState.dragId !== block.id;
 
-          {/* ── 업계 소식 ── */}
-          {sectionTitle("📰", "업계 소식")}
+              const onHandleMouseDown = (e) => {
+                if (block.type === "section") return;
+                e.preventDefault();
+                dragRef.current = { id:block.id, fromIdx:idx, overIdx:idx };
+                setDragState({ dragId:block.id, overIdx:idx });
+                const onMove = mv => {
+                  const rows = Array.from(editorRef.current?.querySelectorAll('[data-block-row]') || []);
+                  let closest = idx, minDist = Infinity;
+                  rows.forEach((row,i) => { const rect=row.getBoundingClientRect(); const dist=Math.abs(mv.clientY-(rect.top+rect.height/2)); if(dist<minDist){minDist=dist;closest=i;} });
+                  if (dragRef.current.overIdx !== closest) { dragRef.current.overIdx=closest; setDragState(s=>({...s,overIdx:closest})); }
+                };
+                const onUp = () => {
+                  window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp);
+                  const {id,overIdx} = dragRef.current;
+                  if (id && overIdx!==null) setBlocks(bs => { const from=bs.findIndex(b=>b.id===id); if(from===overIdx)return bs; const n=[...bs]; const [m]=n.splice(from,1); n.splice(overIdx,0,m); return n; });
+                  dragRef.current={id:null,fromIdx:null,overIdx:null}; setDragState({dragId:null,overIdx:null});
+                };
+                window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+              };
 
-          {industry.map((item, itemIdx) => (
-            <div key={item.id} style={{
-              background:"#FAFAFA", borderRadius:"14px", padding:"20px",
-              marginBottom:"12px", border:"1.5px solid #F0F0F0", position:"relative",
-            }}>
-              {industry.length > 1 && (
-                <button type="button" onClick={() => removeIndustry(item.id)} style={{
-                  position:"absolute", top:"12px", right:"12px",
-                  width:"24px", height:"24px", border:"none", borderRadius:"6px",
-                  background:"#F0F0F0", color:"#AAA", fontSize:"12px", cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                }}>✕</button>
-              )}
-
-              {/* 링크 제목 */}
-              <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"10px" }}>
-                <span style={{ fontSize:"16px" }}>🔗</span>
-                <input
-                  value={item.title}
-                  onChange={e => updateIndustry(item.id, "title", e.target.value)}
-                  placeholder="기사/소식 제목"
-                  style={{
-                    flex:1, padding:"9px 12px", borderRadius:"8px",
-                    border:"1.5px solid #E8E8E8", fontSize:"14px", fontWeight:600,
-                    outline:"none", background:"#fff",
-                  }}
-                  onFocus={e => e.target.style.borderColor="#111"}
-                  onBlur={e => e.target.style.borderColor="#E8E8E8"}
-                />
-              </div>
-
-              {/* URL */}
-              <input
-                value={item.url}
-                onChange={e => updateIndustry(item.id, "url", e.target.value)}
-                placeholder="https://... (출처 URL)"
-                style={{
-                  width:"100%", padding:"8px 12px", borderRadius:"8px",
-                  border:"1.5px solid #E8E8E8", fontSize:"13px", color:"#4338CA",
-                  outline:"none", background:"#fff", marginBottom:"12px", boxSizing:"border-box",
-                }}
-                onFocus={e => e.target.style.borderColor="#4338CA"}
-                onBlur={e => e.target.style.borderColor="#E8E8E8"}
-              />
-
-              {/* 불릿 포인트 */}
-              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
-                {item.bullets.map((bullet, bi) => (
-                  <div key={bi} style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                    <span style={{ color:"#111", fontSize:"14px", flexShrink:0 }}>•</span>
-                    <input
-                      value={bullet}
-                      onChange={e => updateBullet(item.id, bi, e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter") { e.preventDefault(); addBullet(item.id); }
-                        if (e.key === "Backspace" && bullet === "" && item.bullets.length > 1) {
-                          e.preventDefault(); removeBullet(item.id, bi);
-                        }
-                      }}
-                      placeholder="핵심 내용 (Enter로 줄 추가)"
-                      style={{
-                        flex:1, padding:"7px 10px", borderRadius:"7px",
-                        border:"1.5px solid #E8E8E8", fontSize:"13px",
-                        outline:"none", background:"#fff",
-                      }}
-                      onFocus={e => e.target.style.borderColor="#111"}
-                      onBlur={e => e.target.style.borderColor="#E8E8E8"}
-                    />
-                    {item.bullets.length > 1 && (
-                      <button type="button" onClick={() => removeBullet(item.id, bi)} style={{
-                        border:"none", background:"none", cursor:"pointer",
-                        color:"#CCC", fontSize:"14px", padding:"2px",
-                      }}>✕</button>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={() => addBullet(item.id)} style={{
-                  alignSelf:"flex-start", padding:"4px 10px", borderRadius:"6px",
-                  border:"1px dashed #D0D0D0", background:"none",
-                  color:"#AAA", fontSize:"12px", fontWeight:600, cursor:"pointer", marginTop:"2px",
-                }}>+ 항목 추가</button>
-              </div>
-            </div>
-          ))}
-
-          <button type="button" onClick={addIndustry} style={{
-            width:"100%", padding:"12px", borderRadius:"10px",
-            border:"1.5px dashed #D0D0D0", background:"#FAFAFA",
-            color:"#888", fontSize:"13px", fontWeight:600, cursor:"pointer",
-            marginBottom:"8px",
-          }}>+ 업계 소식 추가</button>
-
-          {/* ── 콘텐츠 소식 ── */}
-          {sectionTitle("🎬", "콘텐츠 소식")}
-
-          {contents.map((item) => (
-            <div key={item.id} style={{
-              background:"#FAFAFA", borderRadius:"14px", padding:"20px",
-              marginBottom:"12px", border:"1.5px solid #F0F0F0", position:"relative",
-            }}>
-              {contents.length > 1 && (
-                <button type="button" onClick={() => removeContent(item.id)} style={{
-                  position:"absolute", top:"12px", right:"12px",
-                  width:"24px", height:"24px", border:"none", borderRadius:"6px",
-                  background:"#F0F0F0", color:"#AAA", fontSize:"12px", cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                }}>✕</button>
-              )}
-
-              {/* 제목 */}
-              <input
-                value={item.title}
-                onChange={e => updateContent(item.id, "title", e.target.value)}
-                placeholder="콘텐츠 제목"
-                style={{
-                  width:"100%", padding:"9px 12px", borderRadius:"8px",
-                  border:"1.5px solid #E8E8E8", fontSize:"14px", fontWeight:600,
-                  outline:"none", background:"#fff", marginBottom:"10px", boxSizing:"border-box",
-                }}
-                onFocus={e => e.target.style.borderColor="#111"}
-                onBlur={e => e.target.style.borderColor="#E8E8E8"}
-              />
-
-              {/* URL (유튜브 포함) */}
-              <input
-                value={item.url}
-                onChange={e => updateContent(item.id, "url", e.target.value)}
-                placeholder="https://... (유튜브, 링크 등)"
-                style={{
-                  width:"100%", padding:"8px 12px", borderRadius:"8px",
-                  border:"1.5px solid #E8E8E8", fontSize:"13px", color:"#4338CA",
-                  outline:"none", background:"#fff", marginBottom:"10px", boxSizing:"border-box",
-                }}
-                onFocus={e => e.target.style.borderColor="#4338CA"}
-                onBlur={e => e.target.style.borderColor="#E8E8E8"}
-              />
-
-              {/* 유튜브 미리보기 */}
-              {(() => {
-                const ytMatch = item.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-                if (!ytMatch) return null;
+              // 섹션 헤더 블록
+              if (block.type === "section") {
+                const sec = B_SECTIONS.find(s => s.id === block.sectionId) || B_SECTIONS[0];
                 return (
-                  <div style={{ borderRadius:"10px", overflow:"hidden", marginBottom:"10px", background:"#000" }}>
-                    <iframe
-                      src={`https://www.youtube.com/embed/${ytMatch[1]}`}
-                      style={{ width:"100%", height:"220px", border:"none", display:"block" }}
-                      allowFullScreen
-                    />
+                  <div key={block.id} data-block-row={idx} style={{ margin:"28px 0 16px", display:"flex", alignItems:"center", gap:"8px" }}>
+                    <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
+                    <div style={{ padding:"6px 20px", borderRadius:"999px", border:`2px solid ${sec.color}`, fontSize:"13px", fontWeight:700, color:sec.color, whiteSpace:"nowrap", background:"#fff" }}>
+                      {sec.emoji} {sec.label}
+                    </div>
+                    <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
                   </div>
                 );
-              })()}
+              }
 
-              {/* 설명 */}
-              <textarea
-                value={item.desc}
-                onChange={e => updateContent(item.id, "desc", e.target.value)}
-                placeholder="설명 또는 코멘트"
-                rows={3}
-                style={{
-                  width:"100%", padding:"9px 12px", borderRadius:"8px",
-                  border:"1.5px solid #E8E8E8", fontSize:"13px", lineHeight:1.7,
-                  outline:"none", background:"#fff", resize:"vertical", boxSizing:"border-box",
-                }}
-                onFocus={e => e.target.style.borderColor="#111"}
-                onBlur={e => e.target.style.borderColor="#E8E8E8"}
-              />
-            </div>
-          ))}
+              return (
+                <div key={block.id} data-block-row={idx} style={{ position:"relative", display:"flex", alignItems:"flex-start", gap:"6px", opacity:isDragging?0.3:1, transition:"opacity 0.12s", borderTop:isOver?"2.5px solid #111":"2.5px solid transparent", paddingTop:isOver?"6px":"0" }}>
+                  {/* 드래그 핸들 */}
+                  {block.type === "text" && (
+                    <div onMouseDown={onHandleMouseDown} style={{ flexShrink:0, width:"18px", paddingTop:"6px", cursor:"grab", userSelect:"none", color:"#CCCCCC", fontSize:"14px", lineHeight:1, opacity:isDragging?1:0, transition:"opacity 0.15s" }}
+                      onMouseEnter={e=>e.currentTarget.style.opacity="1"} onMouseLeave={e=>{if(dragState.dragId!==block.id)e.currentTarget.style.opacity="0";}}>⠿</div>
+                  )}
+                  {block.type !== "text" && <div style={{ width:"18px", flexShrink:0 }} />}
 
-          <button type="button" onClick={addContent} style={{
-            width:"100%", padding:"12px", borderRadius:"10px",
-            border:"1.5px dashed #D0D0D0", background:"#FAFAFA",
-            color:"#888", fontSize:"13px", fontWeight:600, cursor:"pointer",
-          }}>+ 콘텐츠 소식 추가</button>
-
+                  <div style={{ flex:1, minWidth:0 }}
+                    onMouseEnter={e=>{ if(block.type!=="text")return; const h=e.currentTarget.previousSibling; if(h)h.style.opacity="1"; }}
+                    onMouseLeave={e=>{ if(block.type!=="text")return; const h=e.currentTarget.previousSibling; if(h&&dragState.dragId!==block.id)h.style.opacity="0"; }}
+                  >
+                    {block.type === "text" && (
+                      <textarea ref={el=>textareaRefs.current[block.id]=el} value={block.content}
+                        onChange={e=>{ updateBlock(block.id,e.target.value); e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; }}
+                        onKeyDown={e=>handleKeyDown(e,block)} onFocus={()=>setFocusedId(block.id)} onBlur={()=>setFocusedId(p=>p===block.id?null:p)}
+                        placeholder="" rows={1}
+                        style={{ width:"100%", border:"none", background:"none", fontSize:"15px", lineHeight:1.9, color:"#333", outline:"none", resize:"none", padding:"2px 0", overflow:"hidden", minHeight:"28px", display:"block" }}
+                      />
+                    )}
+                    {block.type === "image" && (
+                      <div onMouseDown={onHandleMouseDown} onDragStart={e=>e.preventDefault()} style={{ margin:"8px 0", borderRadius:"14px", overflow:"hidden", background:"#F0F0EE", outline:isOver?"2.5px solid #111":"2px solid transparent", transition:"outline 0.15s", position:"relative", cursor:isDragging?"grabbing":"grab", userSelect:"none" }}>
+                        <img src={block.src} alt={block.name} draggable="false" onDragStart={e=>e.preventDefault()} style={{ width:"100%", display:"block", maxHeight:"500px", objectFit:"contain", pointerEvents:"none" }} />
+                        <button type="button" onMouseDown={e=>e.stopPropagation()} onClick={()=>removeBlock(block.id)} style={{ position:"absolute", top:"10px", right:"10px", width:"28px", height:"28px", border:"none", borderRadius:"7px", background:"rgba(0,0,0,0.45)", color:"#fff", fontSize:"13px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      </div>
+                    )}
+                    {block.type === "video" && (
+                      <div onMouseDown={e=>{ if(e.target.tagName==="VIDEO")return; onHandleMouseDown(e); }} style={{ margin:"8px 0", borderRadius:"14px", overflow:"hidden", background:"#111", outline:isOver?"2.5px solid #111":"2px solid transparent", transition:"outline 0.15s", position:"relative", cursor:isDragging?"grabbing":"grab", userSelect:"none" }}>
+                        <video src={block.src} controls style={{ width:"100%", maxHeight:"420px", display:"block" }} />
+                        <button type="button" onMouseDown={e=>e.stopPropagation()} onClick={()=>removeBlock(block.id)} style={{ position:"absolute", top:"10px", right:"10px", width:"28px", height:"28px", border:"none", borderRadius:"7px", background:"rgba(220,50,50,0.82)", color:"#fff", fontSize:"13px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      </div>
+                    )}
+                    {block.type === "file" && (() => {
+                      const ext=block.name.split(".").pop().toLowerCase();
+                      const iconMap={zip:"🗜️",rar:"🗜️","7z":"🗜️",pdf:"📄",doc:"📝",docx:"📝",xls:"📊",xlsx:"📊",ppt:"📊",pptx:"📊",txt:"📃",csv:"📃",mp3:"🎵",wav:"🎵"};
+                      const icon=iconMap[ext]||"📎";
+                      const sizeStr=block.size>1024*1024?`${(block.size/1024/1024).toFixed(2)} MB`:`${(block.size/1024).toFixed(1)} KB`;
+                      return (
+                        <div onMouseDown={onHandleMouseDown} style={{ margin:"8px 0", borderRadius:"12px", border:"1.5px solid #E8E8E8", background:"#FAFAFA", padding:"14px 16px", display:"flex", alignItems:"center", gap:"14px", cursor:isDragging?"grabbing":"grab", userSelect:"none", position:"relative", outline:isOver?"2px solid #111":"none" }}>
+                          <div style={{ width:"44px", height:"44px", borderRadius:"10px", background:"#F0F0F0", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px" }}>{icon}</div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ margin:0, fontSize:"14px", fontWeight:600, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{block.name}</p>
+                            <p style={{ margin:"2px 0 0", fontSize:"12px", color:"#AAA" }}>{sizeStr} · {ext.toUpperCase()}</p>
+                          </div>
+                          <a href={block.src} download={block.name} onMouseDown={e=>e.stopPropagation()} style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"12px", fontWeight:600, textDecoration:"none", flexShrink:0 }}>다운로드</a>
+                          <button type="button" onMouseDown={e=>e.stopPropagation()} onClick={()=>removeBlock(block.id)} style={{ width:"26px", height:"26px", border:"none", borderRadius:"6px", background:"#F0F0F0", color:"#AAA", fontSize:"12px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ minHeight:"80px", cursor:"text" }} onClick={()=>{ const last=[...blocks].reverse().find(b=>b.type==="text"); if(last)textareaRefs.current[last.id]?.focus(); }} />
         </div>
       </div>
     </div>
   );
 }
+
 
 /* ── WRITE MODAL ── 단일 편집 영역, 미디어 삽입 방식 */
 function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
@@ -885,6 +800,8 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
   const [aiLoading,setAiLoading]= useState(false);
   const [focusedId,setFocusedId]= useState(null);
   const [dragState, setDragState] = useState({ dragId:null, overIdx:null }); // 드래그 상태
+  const [floatBar, setFloatBar]   = useState(null); // { top, left, blockId, selStart, selEnd, selectedText }
+  const [formatBar] = useState(true); // 항상 표시되는 서식 툴바
 
   const imgRef           = React.useRef();
   const vidRef           = React.useRef();
@@ -1142,111 +1059,51 @@ JSON만 반환:
       <input ref={vidRef} type="file" accept="video/*" multiple onChange={handleVideoFiles} style={{ display:"none" }} />
       <input ref={fileRef} type="file" multiple onChange={handleFileAttach} style={{ display:"none" }} />
 
-      {/* ── 상단 툴바 ── */}
+      {/* ── 상단 툴바 (모바일 대응) ── */}
       <div style={{
         background:"#fff", borderBottom:"1px solid #EAEAEA",
-        padding:"0 24px", height:"56px",
+        padding:"0 16px", minHeight:"56px",
         display:"flex", alignItems:"center", justifyContent:"space-between",
-        flexShrink:0, position:"sticky", top:0, zIndex:10,
+        flexShrink:0, position:"sticky", top:0, zIndex:10, flexWrap:"wrap", gap:"8px",
       }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"16px" }}>
+        {/* 왼쪽: 뒤로 + 제목 */}
+        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
           <button type="button" onClick={onClose} style={{
             border:"none", background:"none", cursor:"pointer",
-            fontSize:"20px", color:"#888", padding:"4px", display:"flex", alignItems:"center",
+            fontSize:"20px", color:"#888", padding:"4px",
           }}>←</button>
-          <span style={{ fontSize:"15px", fontWeight:700, color:"#111" }}>
-            {editPost ? "✏️ 카드 수정" : "새 카드 작성"}
+          <span style={{ fontSize:"14px", fontWeight:700, color:"#111" }}>
+            {editPost ? "카드 수정" : "새 카드 작성"}
           </span>
-          {/* 임시저장 상태 */}
-          {!editPost && (
-            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-              {author ? (
-                lastSaved ? (
-                  <span style={{ fontSize:"12px", color:"#AAAAAA" }}>
-                    ✓ {lastSaved.getHours().toString().padStart(2,"0")}:{lastSaved.getMinutes().toString().padStart(2,"0")} 임시저장됨
-                  </span>
-                ) : (
-                  <span style={{ fontSize:"12px", color:"#CCCCCC" }}>자동저장 대기 중</span>
-                )
-              ) : (
-                <span style={{ fontSize:"12px", color:"#CCCCCC" }}>작성자 선택 시 자동저장</span>
-              )}
-              {author && (
-                <button type="button"
-                  onClick={() => {
-                    try {
-                      const hasContent = title.trim() || blocks.some(b => b.type !== "text" || b.content.trim());
-                      if (!hasContent) return;
-                      localStorage.setItem(`ai-weekly-draft-${author}`, JSON.stringify({
-                        title, emoji, tag, category,
-                        blocks: blocks.map(b => b.type === "file" ? { ...b, src: "" } : b)
-                      }));
-                      setLastSaved(new Date());
-                    } catch {}
-                  }}
-                  style={{
-                    padding:"4px 10px", borderRadius:"6px",
-                    border:"1px solid #E8E8E8", background:"#F8F8F8",
-                    color:"#888", fontSize:"12px", fontWeight:600, cursor:"pointer",
-                  }}>임시저장</button>
-              )}
-              {author && lastSaved && (
-                <button type="button"
-                  onClick={() => {
-                    if (!window.confirm("임시저장을 삭제할까요?")) return;
-                    try { localStorage.removeItem(`ai-weekly-draft-${author}`); } catch {}
-                    setLastSaved(null);
-                  }}
-                  style={{
-                    padding:"4px 10px", borderRadius:"6px",
-                    border:"1px solid #FFE0E0", background:"#FFF5F5",
-                    color:"#FF9999", fontSize:"12px", fontWeight:600, cursor:"pointer",
-                  }}>삭제</button>
-              )}
-            </div>
+          {lastSaved && (
+            <span style={{ fontSize:"11px", color:"#AAAAAA" }}>
+              ✓ {lastSaved.getHours().toString().padStart(2,"0")}:{lastSaved.getMinutes().toString().padStart(2,"0")} 저장
+            </span>
           )}
         </div>
-        <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+        {/* 오른쪽: 미디어 버튼 + 등록 */}
+        <div style={{ display:"flex", gap:"6px", alignItems:"center", flexWrap:"nowrap" }}>
           <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; imgRef.current.click(); }} style={{
-            padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8",
-            background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer",
-          }}>🖼️ 사진</button>
+            padding:"7px 10px", borderRadius:"8px", border:"1px solid #E8E8E8",
+            background:"#fff", fontSize:"16px", cursor:"pointer",
+          }}>🖼️</button>
           <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; vidRef.current.click(); }} style={{
-            padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8",
-            background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer",
-          }}>🎬 영상</button>
+            padding:"7px 10px", borderRadius:"8px", border:"1px solid #E8E8E8",
+            background:"#fff", fontSize:"16px", cursor:"pointer",
+          }}>🎬</button>
           <button type="button" onClick={() => { insertAfterIdRef.current = focusedId; fileRef.current.click(); }} style={{
-            padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8",
-            background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer",
-          }}>📎 파일</button>
-          <button type="button" onClick={() => {
-            const newId = Date.now();
-            const newTextId = Date.now() + 1;
-            const newBlock = { id: newId, type:"toggle", title:"제목을 입력하세요", open:true, childId: newTextId };
-            const childBlock = { id: newTextId, type:"text", content:"", parentId: newId };
-            const afterId = focusedId || blocks[blocks.length-1]?.id;
-            setBlocks(bs => {
-              const idx = afterId ? bs.findIndex(b => b.id === afterId) : bs.length - 1;
-              const n = [...bs];
-              n.splice(idx + 1, 0, newBlock, childBlock);
-              if (n[n.length-1]?.type !== "text" || n[n.length-1]?.parentId) {
-                n.push({ id: Date.now()+2, type:"text", content:"" });
-              }
-              return n;
-            });
-          }} style={{
-            padding:"7px 14px", borderRadius:"8px", border:"1px solid #E8E8E8",
-            background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer",
-          }}>▶ 펼치기</button>
+            padding:"7px 10px", borderRadius:"8px", border:"1px solid #E8E8E8",
+            background:"#fff", fontSize:"16px", cursor:"pointer",
+          }}>📎</button>
           <button type="button" onClick={autoFill} disabled={aiLoading} style={{
-            padding:"7px 14px", borderRadius:"8px", border:"1.5px dashed #D0D0D0",
-            background:"#FAFAFA", color: aiLoading ? "#BBBBBB" : "#666",
-            fontSize:"13px", fontWeight:600, cursor: aiLoading ? "not-allowed" : "pointer",
-          }}>{aiLoading ? "✨ 생성 중..." : "✨ AI 자동완성"}</button>
+            padding:"7px 10px", borderRadius:"8px", border:"1.5px dashed #D0D0D0",
+            background:"#FAFAFA", fontSize:"16px", cursor: aiLoading ? "not-allowed" : "pointer",
+            opacity: aiLoading ? 0.5 : 1,
+          }}>✨</button>
           <button type="button" onClick={handleSubmit} style={{
-            padding:"8px 20px", borderRadius:"9px", border:"none",
+            padding:"8px 16px", borderRadius:"9px", border:"none",
             background:"#111", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer",
-          }}>{editPost ? "수정 완료 →" : "등록하기 →"}</button>
+          }}>{editPost ? "완료" : "등록 →"}</button>
         </div>
       </div>
 
@@ -1283,32 +1140,66 @@ JSON만 반환:
 
           {/* 메타 정보 */}
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"20px", alignItems:"center" }}>
-            <div style={{ display:"flex", gap:"6px" }}>
-              {CATEGORIES.filter(c => c.id !== "all").map(c => {
-                const s = CAT_STYLE[c.id]; const active = category === c.id;
-                return (
-                  <button type="button" key={c.id} onClick={() => setCategory(c.id)} style={{
-                    padding:"5px 13px", borderRadius:"999px", cursor:"pointer",
-                    fontSize:"12px", fontWeight:700,
-                    border:`1.5px solid ${active ? s.border : "#E8E8E8"}`,
-                    background: active ? s.bg : "#fff",
-                    color: active ? s.text : "#AAA", transition:"all 0.15s",
-                  }}>{c.label}</button>
-                );
-              })}
-            </div>
-            <div style={{ width:"1px", height:"18px", background:"#E8E8E8" }} />
-            <input value={emoji} onChange={e => setEmoji(e.target.value)}
-              style={{ width:"36px", border:"none", background:"none", fontSize:"22px", textAlign:"center", outline:"none" }} />
-            <input value={tag} onChange={e => setTag(e.target.value)} placeholder="#태그"
-              style={{ border:"none", background:"none", fontSize:"13px", fontWeight:600, color:cs.text, outline:"none", width:"90px" }} />
-            <div style={{ width:"1px", height:"18px", background:"#E8E8E8" }} />
             <select value={author} onChange={e => setAuthor(e.target.value)}
-              style={{ border:"none", background:"none", fontSize:"13px", color: author ? "#333" : "#AAAAAA", outline:"none", cursor:"pointer", appearance:"none", WebkitAppearance:"none" }}>
+              style={{
+                border:"1.5px solid #E8E8E8", background:"#fff",
+                fontSize:"13px", color: author ? "#333" : "#AAAAAA",
+                outline:"none", cursor:"pointer",
+                padding:"6px 10px", borderRadius:"8px",
+                minWidth:"100px",
+              }}>
               <option value="" disabled>작성자 선택</option>
               {TEAM_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
             {errors.author && <span style={{ fontSize:"12px", color:"#FF6B6B" }}>{errors.author}</span>}
+          </div>
+
+          {/* ── 서식 툴바 ── */}
+          <div style={{ display:"flex", gap:"4px", flexWrap:"wrap", marginBottom:"16px", padding:"8px 12px", background:"#F8F8F6", borderRadius:"10px", border:"1px solid #EAEAEA", alignItems:"center" }}>
+            {/* 굵기 */}
+            <button type="button" title="굵게 (선택한 텍스트에 **적용**)" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel = v.slice(s,e2);
+              const newV = sel ? v.slice(0,s)+"**"+sel+"**"+v.slice(e2) : v;
+              updateBlock(focusedId, newV);
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontWeight:700, fontSize:"13px", cursor:"pointer", color:"#333" }}>B</button>
+            {/* 이탤릭 */}
+            <button type="button" title="기울임" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel=v.slice(s,e2);
+              if (sel) updateBlock(focusedId, v.slice(0,s)+"_"+sel+"_"+v.slice(e2));
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontStyle:"italic", fontSize:"13px", cursor:"pointer", color:"#333" }}>I</button>
+            {/* 밑줄 */}
+            <button type="button" title="밑줄" onClick={() => {
+              const ta = textareaRefs.current[focusedId]; if (!ta) return;
+              const s=ta.selectionStart, e2=ta.selectionEnd, v=ta.value;
+              const sel=v.slice(s,e2);
+              if (sel) updateBlock(focusedId, v.slice(0,s)+"<u>"+sel+"</u>"+v.slice(e2));
+            }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", textDecoration:"underline", fontSize:"13px", cursor:"pointer", color:"#333" }}>U</button>
+            <div style={{ width:"1px", height:"20px", background:"#E0E0E0", margin:"0 4px" }} />
+            {/* 텍스트 크기 */}
+            {[["S","13px"],["M","15px"],["L","18px"],["XL","22px"]].map(([lbl,sz]) => (
+              <button key={lbl} type="button" title={`글자 크기 ${lbl}`}
+                onClick={() => {
+                  const ta = textareaRefs.current[focusedId]; if (!ta) return;
+                  const sizeMap={"S":"13px","M":"15px","L":"18px","XL":"22px"};
+                  // block의 fontSize 메타 설정
+                  setBlocks(bs => bs.map(b => b.id===focusedId ? {...b, fontSize: sizeMap[lbl]} : b));
+                }}
+                style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", padding:"0 7px", height:"28px", fontSize:"11px", fontWeight:600, cursor:"pointer", color:"#555" }}>{lbl}</button>
+            ))}
+            <div style={{ width:"1px", height:"20px", background:"#E0E0E0", margin:"0 4px" }} />
+            {/* 정렬 */}
+            {[["≡","left","왼쪽"],["≡","center","가운데"],["≡","right","오른쪽"]].map(([ico,align,title2],ai) => (
+              <button key={align} type="button" title={title2+" 정렬"}
+                onClick={() => setBlocks(bs => bs.map(b => b.id===focusedId ? {...b, textAlign:align} : b))}
+                style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"6px", width:"30px", height:"28px", fontSize:"15px", cursor:"pointer", color:"#555",
+                  letterSpacing: align==="center"?"1px":align==="right"?"2px":"0" }}>
+                {align==="left"?"≡":align==="center"?"≡":align==="right"?"≡":"≡"}
+              </button>
+            ))}
           </div>
 
           {/* 제목 */}
@@ -1325,6 +1216,40 @@ JSON만 반환:
           {errors.general&& <p style={{ fontSize:"12px", color:"#FF6B6B", margin:"0 0 6px" }}>{errors.general}</p>}
 
           <div style={{ height:"1px", background:"#F0F0F0", margin:"16px 0 20px" }} />
+
+          {/* ── 플로팅 텍스트 툴바 (텍스트 선택 시) ── */}
+          {floatBar && (
+            <div style={{ position:"absolute", left: floatBar.left, top: floatBar.top, zIndex:100, display:"flex", gap:"2px", background:"#1A1A1A", borderRadius:"9px", padding:"5px 7px", boxShadow:"0 6px 20px rgba(0,0,0,0.3)", animation:"fadeIn 0.12s ease" }}>
+              {[
+                { label:"▸ 접기", action: () => {
+                  const { blockId, selStart, selEnd, selectedText } = floatBar;
+                  const block = blocks.find(b => b.id === blockId);
+                  if (!block) return;
+                  const expandId = Date.now(), bodyId = Date.now()+1;
+                  setBlocks(bs => {
+                    const idx = bs.findIndex(b => b.id === blockId);
+                    const n = [...bs];
+                    n[idx] = { ...block, content: block.content.slice(0, selStart) };
+                    const ins = [
+                      { id:expandId, type:"expand", title:selectedText, open:false },
+                      { id:bodyId,   type:"expand-body", content:"", parentId:expandId },
+                    ];
+                    const after = block.content.slice(selEnd);
+                    if (after) ins.push({ id:Date.now()+2, type:"text", content:after });
+                    n.splice(idx+1, 0, ...ins);
+                    return n;
+                  });
+                  setFloatBar(null);
+                }},
+              ].map((btn, i) => (
+                <button key={i} type="button" onMouseDown={e => { e.preventDefault(); btn.action(); }}
+                  style={{ border:"none", background:"none", color:"#fff", fontSize:"12px", fontWeight:600, cursor:"pointer", padding:"3px 9px", borderRadius:"6px", whiteSpace:"nowrap" }}
+                  onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.18)"}
+                  onMouseLeave={e => e.currentTarget.style.background="none"}
+                >{btn.label}</button>
+              ))}
+            </div>
+          )}
 
           {/* ── 블록 목록 (핸들 드래그) ── */}
           <div style={{ display:"flex", flexDirection:"column" }}>
@@ -1442,19 +1367,104 @@ JSON만 반환:
                         }}
                         onKeyDown={e => handleKeyDown(e, block)}
                         onFocus={() => setFocusedId(block.id)}
-                        onBlur={() => setFocusedId(prev => prev === block.id ? null : prev)}
+                        onBlur={() => setTimeout(() => setFloatBar(null), 150)}
+                        onMouseUp={e => {
+                          const ta = e.currentTarget;
+                          const selStart = ta.selectionStart, selEnd = ta.selectionEnd;
+                          const sel = ta.value.slice(selStart, selEnd).trim();
+                          if (!sel || selStart === selEnd) { setFloatBar(null); return; }
+                          // 선택 영역의 실제 위치를 구하기 위해 range 사용
+                          const edRect = editorRef.current?.getBoundingClientRect() || { left:0, top:0 };
+                          const taRect = ta.getBoundingClientRect();
+                          // textarea 내 선택 위치 추정: 라인 높이 기반
+                          const lineH = parseFloat(getComputedStyle(ta).lineHeight) || 27;
+                          const textBefore = ta.value.slice(0, selStart);
+                          const linesAbove = (textBefore.split("\n").length - 1);
+                          const approxTop = taRect.top - edRect.top + linesAbove * lineH - 42;
+                          setFloatBar({ top: Math.max(approxTop, 0), left: taRect.left - edRect.left, blockId: block.id, selStart, selEnd, selectedText: sel });
+                        }}
+                        onKeyUp={e => {
+                          const ta = e.currentTarget;
+                          const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+                          if (!sel) { setFloatBar(null); return; }
+                        }}
                         placeholder={blocks.filter(b=>b.type==="text").indexOf(block) === 0
                           ? "내용을 입력하세요. 사진·영상은 위 툴바 버튼이나 드래그로 추가하세요." : ""}
                         rows={1}
                         style={{
                           width:"100%", border:"none", background:"none",
-                          fontSize:"15px", lineHeight:1.9, color:"#333",
+                          fontSize: block.fontSize || "15px", lineHeight:1.9, color:"#333",
                           outline:"none", resize:"none", padding:"2px 0",
                           overflow:"hidden", minHeight:"28px", display:"block",
                           cursor: isDragging ? "grabbing" : "text",
+                          textAlign: block.textAlign || "left",
                         }}
                       />
                     )}
+
+                    {/* expand 접기/펼치기 블록 */}
+                    {block.type === "expand" && (() => {
+                      const body = blocks.find(b => b.parentId === block.id && b.type === "expand-body");
+                      const bodyMediaBlocks = blocks.filter(b => b.parentId === block.id && (b.type==="image"||b.type==="video"||b.type==="file"));
+                      const addExpandMedia = (files, mType) => {
+                        Promise.all(Array.from(files).map(f => new Promise(res => {
+                          const r = new FileReader(); r.onload = () => res({ id:Date.now()+Math.random(), type:mType, src:r.result, name:f.name, parentId:block.id }); r.readAsDataURL(f);
+                        }))).then(newBlocks => {
+                          setBlocks(bs => { const idx=bs.findIndex(b=>b.id===block.id); const n=[...bs]; n.splice(idx+2, 0, ...newBlocks); return n; });
+                        });
+                      };
+                      return (
+                        <div style={{ margin:"6px 0", borderRadius:"10px", border:"1px solid #E0E0E0", overflow:"hidden" }}>
+                          {/* 헤더 */}
+                          <div style={{ display:"flex", alignItems:"center", gap:"8px", padding:"10px 14px", background:"#F6F6F4", cursor:"pointer" }}
+                            onClick={() => setBlocks(bs => bs.map(b => b.id===block.id ? {...b, open:!b.open} : b))}>
+                            <span style={{ fontSize:"10px", color:"#888", display:"inline-block", transition:"transform 0.2s", transform:block.open?"rotate(90deg)":"none" }}>▶</span>
+                            <input value={block.title}
+                              onChange={e => { e.stopPropagation(); setBlocks(bs => bs.map(b => b.id===block.id ? {...b, title:e.target.value} : b)); }}
+                              onClick={e => e.stopPropagation()}
+                              placeholder="제목 입력..."
+                              style={{ flex:1, border:"none", background:"none", fontSize:"14px", fontWeight:600, color:"#333", outline:"none" }}
+                            />
+                            {/* 삭제 버튼 */}
+                            <button type="button" onClick={e => { e.stopPropagation(); setBlocks(bs => bs.filter(b => b.id!==block.id && b.parentId!==block.id)); }}
+                              style={{ border:"none", background:"none", cursor:"pointer", fontSize:"13px", color:"#CCC", padding:"2px 6px", borderRadius:"5px" }}
+                              onMouseEnter={e=>{e.currentTarget.style.color="#FF6B6B";e.currentTarget.style.background="#FFF0F0";}}
+                              onMouseLeave={e=>{e.currentTarget.style.color="#CCC";e.currentTarget.style.background="none";}}>✕</button>
+                          </div>
+                          {/* 펼쳐진 내용 */}
+                          {block.open && (
+                            <div style={{ padding:"12px 16px", borderTop:"1px solid #EBEBEB", background:"#fff" }}>
+                              {/* 텍스트 */}
+                              {body && (
+                                <textarea ref={el=>textareaRefs.current[body.id]=el} value={body.content}
+                                  onChange={e=>{updateBlock(body.id,e.target.value);e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}}
+                                  onFocus={()=>setFocusedId(body.id)}
+                                  placeholder="내용을 입력하세요..." rows={2}
+                                  style={{ width:"100%", border:"none", background:"none", fontSize:"14px", lineHeight:1.8, color:"#444", outline:"none", resize:"none", padding:"4px 0", overflow:"hidden", minHeight:"40px" }}
+                                />
+                              )}
+                              {/* 미디어 */}
+                              {bodyMediaBlocks.map(m => (
+                                <div key={m.id} style={{ margin:"8px 0", position:"relative" }}>
+                                  {m.type==="image" && <img src={m.src} alt={m.name} style={{ width:"100%", borderRadius:"8px", objectFit:"contain", maxHeight:"300px" }} />}
+                                  {m.type==="video" && <video src={m.src} controls style={{ width:"100%", borderRadius:"8px", maxHeight:"240px" }} />}
+                                  <button type="button" onClick={()=>setBlocks(bs=>bs.filter(b=>b.id!==m.id))}
+                                    style={{ position:"absolute", top:"6px", right:"6px", width:"24px", height:"24px", border:"none", borderRadius:"6px", background:"rgba(0,0,0,0.45)", color:"#fff", fontSize:"12px", cursor:"pointer" }}>✕</button>
+                                </div>
+                              ))}
+                              {/* 미디어 추가 버튼 */}
+                              <div style={{ display:"flex", gap:"6px", marginTop:"8px" }}>
+                                <input type="file" accept="image/*" multiple id={"exp-img-"+block.id} style={{ display:"none" }} onChange={e=>{addExpandMedia(e.target.files,"image");e.target.value="";}} />
+                                <input type="file" accept="video/*" multiple id={"exp-vid-"+block.id} style={{ display:"none" }} onChange={e=>{addExpandMedia(e.target.files,"video");e.target.value="";}} />
+                                <button type="button" onClick={()=>document.getElementById("exp-img-"+block.id)?.click()} style={{ padding:"4px 12px", borderRadius:"7px", border:"1px dashed #D0D0D0", background:"#FAFAFA", color:"#888", fontSize:"12px", fontWeight:600, cursor:"pointer" }}>🖼️ 사진 추가</button>
+                                <button type="button" onClick={()=>document.getElementById("exp-vid-"+block.id)?.click()} style={{ padding:"4px 12px", borderRadius:"7px", border:"1px dashed #D0D0D0", background:"#FAFAFA", color:"#888", fontSize:"12px", fontWeight:600, cursor:"pointer" }}>🎬 영상 추가</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {block.type === "expand-body" && null}
 
                     {/* 이미지 블록 */}
                     {block.type === "image" && (
@@ -1779,6 +1789,211 @@ function NewsCard({ post, index, onClick, onLike, onBookmark, onDelete }) {
   );
 }
 
+/* ── POST PAGE (게시글 전체 페이지) ── */
+function PostPage({ post, onBack, onLike, onBookmark, onEdit, onDelete, onAddComment, onDeleteComment }) {
+  const cs = CAT_STYLE[post.category] || CAT_STYLE["ai-trend"];
+  const [commentText, setCommentText] = useState("");
+  const [commentName, setCommentName] = useState("");
+  const [replyTo, setReplyTo]         = useState(null);
+  const comments = post.comments || [];
+
+  const submitComment = () => {
+    if (!commentText.trim() || !commentName.trim()) return;
+    onAddComment(post.id, {
+      id: Date.now(), name: commentName.trim(), text: commentText.trim(),
+      date: new Date().toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}).replace(/\. /g,".").replace(/\.$/,""),
+      replyTo: replyTo ? replyTo.name : null,
+    });
+    setCommentText(""); setReplyTo(null);
+  };
+
+  const B_SECTIONS = [
+    { id:"industry", label:"업계 소식",   emoji:"📰", color:"#D97706" },
+    { id:"content",  label:"콘텐츠 소식", emoji:"🎬", color:"#7C3AED" },
+    { id:"trend",    label:"트렌드 소식", emoji:"📈", color:"#059669" },
+    { id:"request",  label:"제작 요청",   emoji:"✏️",  color:"#2563EB" },
+  ];
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#F6F6F4", fontFamily:"'Pretendard', -apple-system, sans-serif" }}>
+      {/* 상단 바 */}
+      <div style={{ position:"sticky", top:0, zIndex:50, background:"rgba(255,255,255,0.95)", backdropFilter:"blur(12px)", borderBottom:"1px solid #EAEAEA" }}>
+        <div style={{ maxWidth:"760px", margin:"0 auto", padding:"0 24px", height:"56px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <button onClick={onBack} style={{ border:"none", background:"none", cursor:"pointer", fontSize:"14px", fontWeight:600, color:"#555", display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"8px" }}>
+            ← 목록으로
+          </button>
+          <div style={{ display:"flex", gap:"8px" }}>
+            <button onClick={() => onEdit(post)} style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"13px", fontWeight:600, cursor:"pointer" }}>✏️ 수정</button>
+            <button onClick={() => onDelete(post.id)} style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #FFE0E0", background:"#FFF5F5", color:"#FF6B6B", fontSize:"13px", fontWeight:600, cursor:"pointer" }}>🗑️ 삭제</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 본문 */}
+      <div style={{ maxWidth:"760px", margin:"0 auto", padding:"40px 24px 80px" }}>
+        <div style={{ background:"#fff", borderRadius:"20px", padding:"40px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
+
+          {/* 카테고리 + 날짜 */}
+          <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"20px" }}>
+            <span style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.07em", padding:"4px 12px", borderRadius:"999px", background:cs.bg, color:cs.text, border:`1px solid ${cs.border}` }}>{post.categoryLabel}</span>
+            <span style={{ fontSize:"13px", color:"#AAAAAA" }}>{post.date}</span>
+            <span style={{ fontSize:"11px", fontWeight:700, padding:"3px 9px", borderRadius:"6px", background:cs.bg, color:cs.text }}>#{post.tag}</span>
+          </div>
+
+          {/* 제목 */}
+          <div style={{ display:"flex", gap:"16px", alignItems:"flex-start", marginBottom:"16px" }}>
+            <div style={{ width:"52px", height:"52px", minWidth:"52px", background:cs.bg, borderRadius:"14px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"26px" }}>{post.emoji}</div>
+            <h1 style={{ margin:0, fontSize:"26px", fontWeight:700, lineHeight:1.3, color:"#111" }}>{post.title}</h1>
+          </div>
+
+          {/* 작성자 */}
+          <div style={{ display:"flex", gap:"10px", alignItems:"center", marginBottom:"28px", paddingBottom:"24px", borderBottom:"1px solid #F0F0F0" }}>
+            <div style={{ width:"32px", height:"32px", borderRadius:"999px", background:"#111", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", fontWeight:700 }}>{(post.author||"?")[0]}</div>
+            <span style={{ fontSize:"14px", fontWeight:600, color:"#111" }}>{post.author}</span>
+          </div>
+
+          {/* B레터 bBlocks 렌더링 */}
+          {post.bBlocks && post.bBlocks.length > 0 && (
+            <div style={{ marginBottom:"24px" }}>
+              {post.bBlocks.map((block, i) => {
+                if (block.type === "section") {
+                  const sec = B_SECTIONS.find(s => s.id === block.sectionId) || B_SECTIONS[0];
+                  return (
+                    <div key={block.id||i} style={{ display:"flex", alignItems:"center", gap:"8px", margin:"32px 0 16px" }}>
+                      <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
+                      <div style={{ padding:"6px 20px", borderRadius:"999px", border:`2px solid ${sec.color}`, fontSize:"13px", fontWeight:700, color:sec.color, whiteSpace:"nowrap", background:"#fff" }}>{sec.emoji} {sec.label}</div>
+                      <div style={{ flex:1, height:"1.5px", background:"#EBEBEB" }} />
+                    </div>
+                  );
+                }
+                if (block.type === "text" && block.content) return (
+                  <p key={block.id||i} style={{ fontSize:"15px", color:"#444", lineHeight:1.9, margin:"0 0 8px", whiteSpace:"pre-line" }} dangerouslySetInnerHTML={{ __html: renderText(block.content) }} />
+                );
+                if (block.type === "image") return (
+                  <div key={block.id||i} style={{ margin:"16px 0", borderRadius:"14px", overflow:"hidden", background:"#F0F0EE" }}>
+                    <img src={block.src} alt={block.name} style={{ width:"100%", display:"block", maxHeight:"600px", objectFit:"contain" }} />
+                  </div>
+                );
+                if (block.type === "video") return (
+                  <div key={block.id||i} style={{ margin:"16px 0", borderRadius:"14px", overflow:"hidden", background:"#111" }}>
+                    <video src={block.src} controls style={{ width:"100%", maxHeight:"480px", display:"block" }} />
+                  </div>
+                );
+                if (block.type === "file") {
+                  const ext=block.name?.split(".")?.pop()?.toLowerCase()||"";
+                  const iconMap={zip:"🗜️",rar:"🗜️",pdf:"📄",doc:"📝",docx:"📝",xls:"📊",xlsx:"📊",mp3:"🎵",wav:"🎵"};
+                  return (
+                    <div key={block.id||i} style={{ margin:"12px 0", borderRadius:"12px", border:"1.5px solid #EBEBEB", background:"#FAFAFA", padding:"14px 16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"42px", height:"42px", borderRadius:"10px", background:"#F0F0F0", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px" }}>{iconMap[ext]||"📎"}</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ margin:0, fontSize:"14px", fontWeight:600, color:"#111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{block.name}</p>
+                      </div>
+                      <a href={block.src} download={block.name} style={{ padding:"7px 14px", borderRadius:"8px", border:"1.5px solid #E8E8E8", background:"#fff", color:"#555", fontSize:"12px", fontWeight:600, textDecoration:"none", flexShrink:0 }}>⬇ 다운로드</a>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          )}
+
+          {/* 일반 블록 렌더링 */}
+          {!post.bBlocks && post.blocks && post.blocks.length > 0 && (
+            <div style={{ marginBottom:"24px" }}>
+              {post.blocks.map((block,i) => {
+                if (block.type==="expand") {
+                  const body = post.blocks?.find(b => b.parentId === block.id);
+                  return (
+                    <details key={block.id||i} open style={{ margin:"10px 0", borderRadius:"10px", border:"1px solid #E0E0E0", overflow:"hidden" }}>
+                      <summary style={{ padding:"12px 16px", fontSize:"14px", fontWeight:600, color:"#333", cursor:"pointer", background:"#F6F6F4", display:"flex", alignItems:"center", gap:"8px", listStyle:"none" }}>
+                        <span style={{ fontSize:"11px", color:"#888" }}>▶</span> {block.title||"(제목 없음)"}
+                      </summary>
+                      {body?.content && <div style={{ padding:"14px 16px", fontSize:"14px", color:"#444", lineHeight:1.8, borderTop:"1px solid #E0E0E0", whiteSpace:"pre-line" }}>{body.content}</div>}
+                    </details>
+                  );
+                }
+                if (block.type==="expand-body") return null;
+                if (block.type==="text"&&block.content) return <p key={block.id||i} style={{ fontSize:"15px", color:"#444", lineHeight:1.9, margin:"0 0 8px", whiteSpace:"pre-line" }} dangerouslySetInnerHTML={{ __html: renderText(block.content) }} />;
+                if (block.type==="image") return <div key={block.id||i} style={{ margin:"16px 0", borderRadius:"14px", overflow:"hidden" }}><img src={block.src} alt={block.name} style={{ width:"100%", display:"block", maxHeight:"600px", objectFit:"contain" }} /></div>;
+                if (block.type==="video") return <div key={block.id||i} style={{ margin:"16px 0", borderRadius:"14px", overflow:"hidden", background:"#111" }}><video src={block.src} controls style={{ width:"100%", maxHeight:"480px", display:"block" }} /></div>;
+                return null;
+              })}
+            </div>
+          )}
+
+          {/* 샘플 포스트 body */}
+          {!post.bBlocks && (!post.blocks || post.blocks.length===0) && (
+            <div style={{ fontSize:"15px", color:"#444", lineHeight:1.9, marginBottom:"24px", whiteSpace:"pre-line" }} dangerouslySetInnerHTML={{ __html: renderText(post.body||"") }} />
+          )}
+
+          {/* URL 링크 */}
+          {post.url && (
+            <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:"10px", padding:"14px 18px", borderRadius:"12px", background:"#F6F6F4", border:"1.5px solid #EBEBEB", textDecoration:"none", color:"#333", fontSize:"13px", fontWeight:500, marginBottom:"24px" }}>
+              <span style={{ fontSize:"18px" }}>🔗</span>
+              <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{post.url}</span>
+              <span style={{ color:"#BBBBBB", fontSize:"12px" }}>바로가기 →</span>
+            </a>
+          )}
+
+          {/* 좋아요 / 북마크 */}
+          <div style={{ display:"flex", gap:"10px", paddingTop:"20px", borderTop:"1px solid #F0F0F0" }}>
+            <button onClick={()=>onLike(post.id)} style={{ flex:1, padding:"13px", borderRadius:"12px", cursor:"pointer", fontSize:"14px", fontWeight:600, border:`1.5px solid ${post.liked?"#FF6B6B":"#E8E8E8"}`, background:post.liked?"#FFF0F0":"#fff", color:post.liked?"#FF6B6B":"#888", transition:"all 0.18s" }}>{post.liked?"❤️":"🤍"} 좋아요 {post.likes}</button>
+            <button onClick={()=>onBookmark(post.id)} style={{ flex:1, padding:"13px", borderRadius:"12px", cursor:"pointer", fontSize:"14px", fontWeight:600, border:`1.5px solid ${post.bookmarked?"#F59E0B":"#E8E8E8"}`, background:post.bookmarked?"#FFFBEB":"#fff", color:post.bookmarked?"#F59E0B":"#888", transition:"all 0.18s" }}>{post.bookmarked?"🔖":"📌"} {post.bookmarked?"저장됨":"북마크"}</button>
+          </div>
+        </div>
+
+        {/* 댓글 섹션 */}
+        <div style={{ background:"#fff", borderRadius:"20px", padding:"32px 40px", marginTop:"16px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
+          <p style={{ fontSize:"16px", fontWeight:700, color:"#111", marginBottom:"20px" }}>💬 댓글 {comments.length>0?comments.length:""}</p>
+
+          {comments.length === 0 ? (
+            <p style={{ fontSize:"14px", color:"#CCCCCC", textAlign:"center", padding:"20px 0 28px" }}>첫 댓글을 남겨보세요 👋</p>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:"4px", marginBottom:"20px" }}>
+              {comments.map(c => (
+                <div key={c.id} style={{ padding:"14px 16px", borderRadius:"14px", background:c.replyTo?"#F8F8F8":"#FAFAFA", borderLeft:c.replyTo?"3px solid #E0E0E0":"none", marginLeft:c.replyTo?"12px":"0" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"6px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                      <div style={{ width:"28px", height:"28px", borderRadius:"999px", background:"#111", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"12px", fontWeight:700, flexShrink:0 }}>{c.name[0]}</div>
+                      <span style={{ fontSize:"14px", fontWeight:700, color:"#111" }}>{c.name}</span>
+                      <span style={{ fontSize:"11px", color:"#CCCCCC" }}>{c.date}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:"8px" }}>
+                      <button onClick={()=>setReplyTo({id:c.id,name:c.name})} style={{ border:"none", background:"none", cursor:"pointer", fontSize:"12px", color:"#AAAAAA", fontWeight:600 }}>↩ 답글</button>
+                      <button onClick={()=>onDeleteComment(post.id,c.id)} style={{ border:"none", background:"none", cursor:"pointer", fontSize:"12px", color:"#DDDDDD", fontWeight:600 }}>삭제</button>
+                    </div>
+                  </div>
+                  {c.replyTo && <p style={{ fontSize:"11px", color:"#AAAAAA", margin:"0 0 4px" }}>@{c.replyTo} 에게</p>}
+                  <p style={{ fontSize:"14px", color:"#444", lineHeight:1.7, margin:0 }}>{c.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {replyTo && (
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", padding:"8px 14px", background:"#F0F0F0", borderRadius:"9px", marginBottom:"10px", fontSize:"13px", color:"#666" }}>
+              <span>↩ <b>{replyTo.name}</b>에게 답글 중</span>
+              <button onClick={()=>setReplyTo(null)} style={{ border:"none", background:"none", cursor:"pointer", fontSize:"14px", color:"#AAAAAA", marginLeft:"auto" }}>×</button>
+            </div>
+          )}
+
+          <select value={commentName} onChange={e=>setCommentName(e.target.value)} style={{ width:"100%", padding:"11px 14px", borderRadius:"10px", border:"1.5px solid #EAEAEA", fontSize:"13px", outline:"none", color:commentName?"#333":"#AAAAAA", background:"#fff", cursor:"pointer", marginBottom:"10px" }}
+            onFocus={e=>e.target.style.borderColor="#111"} onBlur={e=>e.target.style.borderColor="#EAEAEA"}>
+            <option value="" disabled>이름 선택</option>
+            {TEAM_MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <div style={{ display:"flex", gap:"10px" }}>
+            <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}} placeholder="댓글을 입력하세요 (Enter로 등록)" rows={3}
+              style={{ flex:1, padding:"12px 14px", borderRadius:"10px", border:"1.5px solid #EAEAEA", fontSize:"14px", outline:"none", resize:"none", lineHeight:1.6 }}
+              onFocus={e=>e.target.style.borderColor="#111"} onBlur={e=>e.target.style.borderColor="#EAEAEA"} />
+            <button onClick={submitComment} style={{ padding:"0 20px", borderRadius:"10px", border:"none", background:"#111", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer", flexShrink:0 }}>등록</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── PASSWORD GATE ── */
 const PASSWORD = "bc0410";
 
@@ -1862,13 +2077,20 @@ function PasswordGate({ onEnter }) {
 /* ── APP ── */
 export default function App() {
   const [auth, setAuth]             = useState(() => sessionStorage.getItem("bconbu-auth") === "1");
-  const [posts, setPosts]           = useState(SAMPLE_POSTS);
+  const [posts, setPosts] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bconbu-posts");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return SAMPLE_POSTS;
+  });
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
   const [showWrite, setShowWrite]   = useState(false);
   const [writeCategory, setWriteCategory] = useState(null);
   const [editPost, setEditPost]     = useState(null);
   const [detail, setDetail]         = useState(null);
+  const [postPage, setPostPage]     = useState(null);
   const [bmOnly, setBmOnly]         = useState(false);
 
   const handleLike = id => setPosts(ps => ps.map(p =>
@@ -1901,7 +2123,29 @@ export default function App() {
 
   // keep detail in sync
   useEffect(() => {
-    if (detail) setDetail(posts.find(p => p.id === detail.id) || null);
+    if (detail)   setDetail(posts.find(p => p.id === detail.id) || null);
+    if (postPage) setPostPage(posts.find(p => p.id === postPage.id) || null);
+  }, [posts]);
+
+  // posts 변경 시 localStorage에 저장
+  useEffect(() => {
+    try {
+      // 이미지/영상 src는 용량이 크므로 제외하고 저장
+      const toSave = posts.map(p => ({
+        ...p,
+        blocks: p.blocks?.map(b =>
+          (b.type === "image" || b.type === "video" || b.type === "file") ? { ...b, src: "" } : b
+        ),
+        bBlocks: p.bBlocks?.map(b =>
+          (b.type === "image" || b.type === "video" || b.type === "file") ? { ...b, src: "" } : b
+        ),
+        images: [],
+        videos: [],
+      }));
+      localStorage.setItem("bconbu-posts", JSON.stringify(toSave));
+    } catch(e) {
+      console.warn("저장 실패:", e);
+    }
   }, [posts]);
 
   const filtered = posts.filter(p => {
@@ -1915,6 +2159,24 @@ export default function App() {
 
   if (!auth) {
     return <PasswordGate onEnter={() => { sessionStorage.setItem("bconbu-auth","1"); setAuth(true); }} />;
+  }
+
+  if (postPage) {
+    return (
+      <>
+        <G />
+        <PostPage
+          post={postPage}
+          onBack={() => setPostPage(null)}
+          onLike={handleLike}
+          onBookmark={handleBookmark}
+          onEdit={(p) => { setPostPage(null); handleEdit(p); }}
+          onDelete={(id) => { handleDelete(id); setPostPage(null); }}
+          onAddComment={handleAddComment}
+          onDeleteComment={handleDeleteComment}
+        />
+      </>
+    );
   }
 
   if (showWrite) {
@@ -1941,7 +2203,7 @@ export default function App() {
     <>
       <G />
 
-      {detail && <DetailModal post={detail} onClose={() => setDetail(null)} onLike={handleLike} onBookmark={handleBookmark} onEdit={handleEdit} onDelete={handleDelete} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment} />}
+      
       
 
       {/* HEADER */}
@@ -2081,7 +2343,7 @@ export default function App() {
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(290px, 1fr))", gap:"18px" }}>
             {filtered.map((post, i) => (
               <NewsCard key={post.id} post={post} index={i}
-                onClick={() => setDetail(post)}
+                onClick={() => setPostPage(post)}
                 onLike={handleLike} onBookmark={handleBookmark} onDelete={handleDelete} />
             ))}
           </div>
