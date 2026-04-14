@@ -344,27 +344,28 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
   const imgRef    = React.useRef();
   const vidRef    = React.useRef();
   const savedSel  = React.useRef(null);
-  const [showSelMenu,   setShowSelMenu]   = React.useState(false);
-  const [showLink,      setShowLink]      = React.useState(false);
-  const [showHighlight, setShowHighlight] = React.useState(false);
-  const [linkUrl,       setLinkUrl]       = React.useState("https://");
-  const [linkPopupPos,  setLinkPopupPos]  = React.useState({ x: 0, y: 0 });
-  const [showColorBox,  setShowColorBox]  = React.useState(false);
+  const [showSelMenu,    setShowSelMenu]    = React.useState(false);
+  const [showLink,       setShowLink]       = React.useState(false);
+  const [showHighlight,  setShowHighlight]  = React.useState(false);
+  const [linkUrl,        setLinkUrl]        = React.useState("https://");
+  const [linkPopupPos,   setLinkPopupPos]   = React.useState({ x: 0, y: 0 });
+  const [showColorBox,   setShowColorBox]   = React.useState(false);
+  const [showSectionMenu,setShowSectionMenu]= React.useState(false);
 
   const TEMPLATE = `<h2 style="font-size:22px;font-weight:800;color:#111;margin-bottom:24px;">📰 B레터</h2>
 <div style="background:#FFF8E7;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin:16px 0;color:#92400E;font-size:14px;line-height:1.8;">이번 주 한 줄 요약을 여기에 입력하세요.</div>
 <p><br/></p>
 <div style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #D97706;color:#D97706;background:#fff;white-space:nowrap;">📰 업계 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div></div>
-<p>내용을 입력하세요.</p>
+<p data-ph=\"true\" style=\"color:#BBBBBB;\">내용을 입력하세요...</p>
 <p><br/></p>
 <div style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #7C3AED;color:#7C3AED;background:#fff;white-space:nowrap;">🎬 콘텐츠 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div></div>
-<p>내용을 입력하세요.</p>
+<p data-ph=\"true\" style=\"color:#BBBBBB;\">내용을 입력하세요...</p>
 <p><br/></p>
 <div style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #059669;color:#059669;background:#fff;white-space:nowrap;">📈 트렌드 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div></div>
-<p>내용을 입력하세요.</p>
+<p data-ph=\"true\" style=\"color:#BBBBBB;\">내용을 입력하세요...</p>
 <p><br/></p>
 <div style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #2563EB;color:#2563EB;background:#fff;white-space:nowrap;">✏️ 제작 요청</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div></div>
-<p>내용을 입력하세요.</p>
+<p data-ph=\"true\" style=\"color:#BBBBBB;\">내용을 입력하세요...</p>
 <p><br/></p>`;
 
   React.useEffect(() => {
@@ -385,6 +386,25 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
     } else {
       el.innerHTML = TEMPLATE;
     }
+    // 섹션 헤더 × 버튼 이벤트 연결
+    el.querySelectorAll("button[data-del-section]").forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        e.preventDefault(); e.stopPropagation();
+        var wrapper = btn.parentNode;
+        if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+      });
+    });
+    // placeholder 클릭 시 제거
+    el.querySelectorAll("[data-ph='true']").forEach(function(ph) {
+      ph.addEventListener("click", function() {
+        var parent = ph.tagName === "SPAN" ? ph.parentNode : ph;
+        if (parent.tagName === "SPAN") parent = parent.parentNode;
+        parent.innerHTML = "<br/>";
+        var range = document.createRange();
+        range.setStart(parent, 0); range.collapse(true);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      });
+    });
     el.focus();
   }, []);
 
@@ -481,7 +501,7 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
       editorHtml, body,
       bBlocks: [], blocks: [], images: [], videos: [], files: [],
       category: "b-letter", categoryLabel: "B레터",
-      title: "B레터 " + today, emoji: "📰", tag: "B레터",
+      title: "B레터 " + today, emoji: "📬", tag: "B레터",
       author, date: today,
       summary: body.slice(0,80)+(body.length>80?"...":""),
       url: editPost?.url||"", id: editPost?.id||Date.now(),
@@ -499,25 +519,25 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
 
       {/* 드래그 선택 팝업 */}
       {showSelMenu && !showLink && !showHighlight && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"8px 10px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"4px", alignItems:"center" }}>
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"2px", alignItems:"center" }}>
           <button type="button" onClick={function(){ setShowHighlight(false); setShowLink(true); setLinkUrl("https://"); }}
-            style={{ border:"none", background:"none", cursor:"pointer", padding:"5px 10px", borderRadius:"7px", display:"flex", flexDirection:"column", alignItems:"center", gap:"2px", color:"#fff" }}
+            style={{ border:"none", background:"none", cursor:"pointer", padding:"3px 8px", borderRadius:"6px", display:"flex", flexDirection:"column", alignItems:"center", gap:"1px", color:"#fff" }}
             onMouseEnter={function(e){ e.currentTarget.style.background="rgba(255,255,255,0.15)"; }}
             onMouseLeave={function(e){ e.currentTarget.style.background="none"; }}
-          ><span style={{fontSize:"18px"}}>🔗</span><span style={{fontSize:"10px",opacity:0.7}}>링크</span></button>
+          ><span style={{fontSize:"15px"}}>🔗</span><span style={{fontSize:"9px",opacity:0.7}}>링크</span></button>
           <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} />
           <button type="button" onClick={function(){ setShowLink(false); setShowHighlight(true); }}
-            style={{ border:"none", background:"none", cursor:"pointer", padding:"5px 10px", borderRadius:"7px", display:"flex", flexDirection:"column", alignItems:"center", gap:"2px", color:"#fff" }}
+            style={{ border:"none", background:"none", cursor:"pointer", padding:"3px 8px", borderRadius:"6px", display:"flex", flexDirection:"column", alignItems:"center", gap:"1px", color:"#fff" }}
             onMouseEnter={function(e){ e.currentTarget.style.background="rgba(255,255,255,0.15)"; }}
             onMouseLeave={function(e){ e.currentTarget.style.background="none"; }}
-          ><span style={{fontSize:"18px"}}>🖊️</span><span style={{fontSize:"10px",opacity:0.7}}>형광펜</span></button>
+          ><span style={{fontSize:"15px"}}>🖊️</span><span style={{fontSize:"9px",opacity:0.7}}>형광펜</span></button>
           <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} />
           <button type="button" onClick={function(){ setShowSelMenu(false); setShowLink(false); setShowHighlight(false); }} style={{border:"none",background:"none",cursor:"pointer",color:"#888",fontSize:"16px",padding:"4px 6px"}}>✕</button>
         </div>
       )}
       {/* 링크 URL 입력 */}
       {showSelMenu && showLink && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"10px 12px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center", minWidth:"300px" }}>
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center", minWidth:"280px" }}>
           <button type="button" onClick={function(){setShowLink(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
           <span style={{fontSize:"14px"}}>🔗</span>
           <input autoFocus value={linkUrl} onChange={function(e){setLinkUrl(e.target.value);}}
@@ -529,7 +549,7 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
       )}
       {/* 형광펜 색상 선택 */}
       {showSelMenu && showHighlight && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"10px 12px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center" }}>
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center" }}>
           <button type="button" onClick={function(){setShowHighlight(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
           {[["#FEF08A","노랑"],["#BBF7D0","초록"],["#BFDBFE","파랑"],["#FBCFE8","분홍"],["#FED7AA","주황"]].map(function(c){
             return (
@@ -550,7 +570,7 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
                   } catch(ex) {}
                   setShowSelMenu(false); setShowHighlight(false);
                 }}
-                style={{ width:"26px", height:"26px", borderRadius:"5px", background:c[0], border:"2px solid rgba(255,255,255,0.4)", cursor:"pointer", transition:"transform 0.1s" }}
+                style={{ width:"22px", height:"22px", borderRadius:"4px", background:c[0], border:"2px solid rgba(255,255,255,0.4)", cursor:"pointer", transition:"transform 0.1s" }}
                 onMouseEnter={function(e){e.currentTarget.style.transform="scale(1.25)";}}
                 onMouseLeave={function(e){e.currentTarget.style.transform="scale(1)";}}
                 title={c[1]}
@@ -694,9 +714,12 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
               var sel=window.getSelection();
               if(sel&&!sel.isCollapsed&&sel.rangeCount>0){
                 var rect=sel.getRangeAt(0).getBoundingClientRect();
-                var x=rect.left+rect.width/2; var y=rect.top-50;
-                if(y<60) y=rect.bottom+10;
-                setLinkPopupPos({x:Math.max(160,Math.min(x,window.innerWidth-160)),y:y});
+                var popupH=56;
+                var x=rect.left+rect.width/2;
+                var y=rect.top-popupH-18;
+                if(y<10) y=rect.bottom+18;
+                var clampedX=Math.max(100,Math.min(x,window.innerWidth-100));
+                setLinkPopupPos({x:clampedX,y:y});
                 setShowSelMenu(true); setShowLink(false); setShowHighlight(false);
               } else { setShowSelMenu(false); setShowLink(false); setShowHighlight(false); }
             }}
@@ -752,533 +775,683 @@ function BLetterForm({ onClose, onSubmit, editPost }) {
 
 
 function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
+  const defaultEmoji = (cat) => cat === "ai-trend" ? "🤖" : cat === "b-letter" ? "📬" : cat === "source" ? "🔗" : "📝";
+
   const [category, setCategory] = React.useState(editPost?.category || writeCategory || "ai-trend");
-  const [title, setTitle] = React.useState(editPost?.title || "");
-  const [author, setAuthor] = React.useState(editPost?.author || "");
-  const [emoji, setEmoji] = React.useState(editPost?.emoji || "📝");
-  const [tag, setTag] = React.useState(editPost?.tag || "");
-  const [errors, setErrors] = React.useState({});
-  const [showSelMenu,   setShowSelMenu]   = React.useState(false);
-  const [showLink,      setShowLink]      = React.useState(false);
-  const [showHighlight, setShowHighlight] = React.useState(false);
-  const [linkUrl,       setLinkUrl]       = React.useState("https://");
-  const [linkPopupPos,  setLinkPopupPos]  = React.useState({ x: 0, y: 0 });
-  const [showColorBox,  setShowColorBox]  = React.useState(false);
-  const editorRef = React.useRef(null);
-  const imgRef = React.useRef();
-  const vidRef = React.useRef();
-  const fileRef = React.useRef();
+  const [title,    setTitle]    = React.useState(editPost?.title    || "");
+  const [author,   setAuthor]   = React.useState(editPost?.author   || "");
+  const [emoji,    setEmoji]    = React.useState(editPost?.emoji    || defaultEmoji(editPost?.category || writeCategory || "ai-trend"));
+  const [tag,      setTag]      = React.useState(editPost?.tag      || "");
+  const [errors,   setErrors]   = React.useState({});
+
+  // 블록 기반 상태
+  const initBlocks = () => {
+    if (editPost?.editorHtml) return [{ id: 1, type: "html", content: editPost.editorHtml }];
+    if (editPost?.body)       return [{ id: 1, type: "text", content: editPost.body }];
+    if (writeCategory === "b-letter") return [
+      { id: Date.now()+1, type: "html", content: '<div style="background:#FFF8E7;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 8px;color:#92400E;font-size:14px;line-height:1.6;">이번 주 한 줄 요약을 여기에 입력하세요.</div>' },
+      { id: Date.now()+2, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #D97706;color:#D97706;background:#fff;white-space:nowrap;">📰 업계 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+3, type: "text", content: "" },
+      { id: Date.now()+4, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #7C3AED;color:#7C3AED;background:#fff;white-space:nowrap;">🎬 콘텐츠 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+5, type: "text", content: "" },
+      { id: Date.now()+6, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #059669;color:#059669;background:#fff;white-space:nowrap;">📈 트렌드 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+7, type: "text", content: "" },
+      { id: Date.now()+8, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #2563EB;color:#2563EB;background:#fff;white-space:nowrap;">✏️ 제작 요청</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+9, type: "text", content: "" },
+    ];
+    return [{ id: Date.now(), type: "text", content: "" }];
+  };
+  const [blocks, setBlocks] = React.useState(initBlocks);
+  const [dragOver, setDragOver] = React.useState(null);
+  const dragId = React.useRef(null);
+  const blockRefs = React.useRef({});
+
+  // refs
+  const imgRef  = React.useRef();
+  const vidRef  = React.useRef();
   const savedSel = React.useRef(null);
+  const activeBlockId = React.useRef(null);
 
-  React.useEffect(() => {
-    const el = editorRef.current;
-    if (!el) return;
-    if (editPost && editPost.editorHtml) {
-      el.innerHTML = editPost.editorHtml;
-      // 저장 시 변환된 색깔블록 div → textarea로 복원
-      el.querySelectorAll("div[style*='border-left']").forEach(function(div) {
-        var ta = document.createElement("textarea");
-        ta.rows = 1;
-        ta.value = div.textContent || "";
-        ta.style.cssText = div.style.cssText + "width:100%;font-family:inherit;border-top:none;border-right:none;border-bottom:none;outline:none;resize:none;overflow:hidden;display:block;box-sizing:border-box;white-space:pre-wrap;";
-        ta.addEventListener("input", function() {
-          ta.style.height = "auto";
-          ta.style.height = ta.scrollHeight + "px";
-        });
-        // 초기 높이 맞추기
-        setTimeout(function() {
-          ta.style.height = "auto";
-          ta.style.height = ta.scrollHeight + "px";
-        }, 0);
-        var wrapper = document.createElement("div");
-        wrapper.setAttribute("contenteditable", "false");
-        wrapper.style.cssText = "margin:10px 0;display:block;";
-        wrapper.appendChild(ta);
-        div.parentNode.replaceChild(wrapper, div);
-      });
-    } else if (editPost && editPost.body) {
-      el.innerHTML = "<p>" + editPost.body + "</p>";
+  // state for popups
+  const [showSelMenu,    setShowSelMenu]    = React.useState(false);
+  const [showLink,       setShowLink]       = React.useState(false);
+  const [showHighlight,  setShowHighlight]  = React.useState(false);
+  const [linkUrl,        setLinkUrl]        = React.useState("https://");
+  const [linkPopupPos,   setLinkPopupPos]   = React.useState({ x: 0, y: 0 });
+  const [showColorBox,   setShowColorBox]   = React.useState(false);
+  const [showSectionMenu,setShowSectionMenu]= React.useState(false);
+  const [secMenuPos,     setSecMenuPos]     = React.useState({x:0,y:0});
+
+  const B_TEMPLATE_HTML = '<div style="background:#FFF8E7;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 16px;color:#92400E;font-size:14px;line-height:1.8;">이번 주 한 줄 요약을 여기에 입력하세요.</div><p><br/></p><div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #D97706;color:#D97706;background:#fff;white-space:nowrap;">📰 업계 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div><p data-ph="true" style="color:#BBBBBB;">내용을 입력하세요...</p><p><br/></p><div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #7C3AED;color:#7C3AED;background:#fff;white-space:nowrap;">🎬 콘텐츠 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div><p data-ph="true" style="color:#BBBBBB;">내용을 입력하세요...</p><p><br/></p><div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #059669;color:#059669;background:#fff;white-space:nowrap;">📈 트렌드 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div><p data-ph="true" style="color:#BBBBBB;">내용을 입력하세요...</p><p><br/></p><div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:24px 0 12px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #2563EB;color:#2563EB;background:#fff;white-space:nowrap;">✏️ 제작 요청</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div><p data-ph="true" style="color:#BBBBBB;">내용을 입력하세요...</p><p><br/></p>';
+
+  // 블록 업데이트
+  const updateBlock = (id, changes) => setBlocks(bs => bs.map(b => b.id === id ? {...b, ...changes} : b));
+  const removeBlock = (id) => setBlocks(bs => bs.filter(b => b.id !== id));
+  const addBlock = (afterId, block) => setBlocks(bs => {
+    const idx = bs.findIndex(b => b.id === afterId);
+    const newBs = [...bs];
+    newBs.splice(idx + 1, 0, block);
+    return newBs;
+  });
+
+  // 드래그앤드롭
+  const onDragStart = (e, id) => {
+    dragId.current = id;
+    e.dataTransfer.effectAllowed = "move";
+    e.currentTarget.style.opacity = "0.4";
+  };
+  const onDragEnd = (e) => {
+    e.currentTarget.style.opacity = "";
+    setDragOver(null);
+    dragId.current = null;
+  };
+  const onDragOverBlock = (e, id) => {
+    e.preventDefault();
+    if (dragId.current !== id) setDragOver(id);
+  };
+  const onDropBlock = (e, id) => {
+    e.preventDefault();
+    const from = dragId.current;
+    if (!from || from === id) { setDragOver(null); return; }
+    setBlocks(bs => {
+      const fromIdx = bs.findIndex(b => b.id === from);
+      const toIdx   = bs.findIndex(b => b.id === id);
+      const newBs = [...bs];
+      const [item] = newBs.splice(fromIdx, 1);
+      newBs.splice(toIdx, 0, item);
+      return newBs;
+    });
+    setDragOver(null);
+  };
+
+  // 이미지 업로드
+  const insertImgToBlock = async (file, blockId) => {
+    let url = await uploadToStorage(file);
+    if (!url) url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
+    if (!url) return;
+    const newBlock = { id: Date.now(), type: "image", src: url };
+    const id = blockId || (blocks[blocks.length-1]?.id);
+    if (id) addBlock(id, newBlock);
+    else setBlocks(bs => [...bs, newBlock]);
+  };
+  const insertVidToBlock = async (file, blockId) => {
+    let url = await uploadToStorage(file);
+    if (!url) url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
+    if (!url) return;
+    const newBlock = { id: Date.now(), type: "video", src: url };
+    const id = blockId || (blocks[blocks.length-1]?.id);
+    if (id) addBlock(id, newBlock);
+    else setBlocks(bs => [...bs, newBlock]);
+  };
+
+  const handleImgChange = (e) => {
+    Array.from(e.target.files).forEach(f => insertImgToBlock(f, activeBlockId.current));
+    e.target.value = "";
+  };
+  const handleVidChange = (e) => {
+    Array.from(e.target.files).forEach(f => insertVidToBlock(f, activeBlockId.current));
+    e.target.value = "";
+  };
+
+  // 카테고리 변경 시 B레터 템플릿
+  const handleCategoryChange = (val) => {
+    setCategory(val);
+    setEmoji(defaultEmoji(val));
+    if (val === "b-letter") {
+      setBlocks([
+      { id: Date.now()+1, type: "html", content: '<div style="background:#FFF8E7;border-left:4px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 8px;color:#92400E;font-size:14px;line-height:1.6;">이번 주 한 줄 요약을 여기에 입력하세요.</div>' },
+      { id: Date.now()+2, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #D97706;color:#D97706;background:#fff;white-space:nowrap;">📰 업계 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+3, type: "text", content: "" },
+      { id: Date.now()+4, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #7C3AED;color:#7C3AED;background:#fff;white-space:nowrap;">🎬 콘텐츠 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+5, type: "text", content: "" },
+      { id: Date.now()+6, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #059669;color:#059669;background:#fff;white-space:nowrap;">📈 트렌드 소식</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+7, type: "text", content: "" },
+      { id: Date.now()+8, type: "html", content: '<div contenteditable="false" style="display:flex;align-items:center;gap:8px;margin:20px 0 8px;position:relative;"><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid #2563EB;color:#2563EB;background:#fff;white-space:nowrap;">✏️ 제작 요청</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div><button data-del-section="true" style="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">×</button></div>' },
+      { id: Date.now()+9, type: "text", content: "" },
+    ]);
     } else {
-      el.innerHTML = "<p><br/></p>";
+      // 다른 카테고리로 이동 시 빈 텍스트 블록으로 초기화
+      setBlocks([{ id: Date.now(), type: "text", content: "" }]);
     }
-    el.focus();
-  }, []);
+  };
 
+  // contentEditable 블록 saveSel
   const saveSel = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) savedSel.current = sel.getRangeAt(0).cloneRange();
   };
-
   const applyLink = () => {
-    if (!linkUrl || linkUrl === "https://") return;
-    if (!savedSel.current) return;
-    var el = editorRef.current; if (!el) return;
-    var range = savedSel.current;
-    var a = document.createElement("a");
+    if (!linkUrl || linkUrl === "https://" || !savedSel.current) return;
+    const range = savedSel.current;
+    const a = document.createElement("a");
     a.href = linkUrl; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.style.color = "#4338CA"; a.style.textDecoration = "underline";
-    try {
-      a.appendChild(range.cloneContents());
-      range.deleteContents();
-      range.insertNode(a);
-      var after = document.createRange(); after.setStartAfter(a); after.collapse(true);
-      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(after);
-    } catch(ex) {}
-    setShowLink(false); setLinkUrl("https://");
-  };
-
-  const restoreSel = () => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    if (savedSel.current) {
-      const sel = window.getSelection();
-      if (sel) { sel.removeAllRanges(); sel.addRange(savedSel.current); }
+    try { a.appendChild(range.cloneContents()); range.deleteContents(); range.insertNode(a); } catch(ex) {}
+    setShowSelMenu(false); setShowLink(false); setLinkUrl("https://");
+    // HTML 블록이면 innerHTML 갱신
+    if (activeBlockId.current) {
+      const el = blockRefs.current[activeBlockId.current];
+      if (el) updateBlock(activeBlockId.current, { content: el.innerHTML });
     }
   };
 
-  const cmd = (command, val) => {
-    restoreSel();
-    document.execCommand(command, false, val || null);
-    if (editorRef.current) editorRef.current.focus();
-  };
-
-  const insertImg = async (file) => {
-    let url = await uploadToStorage(file);
-    if (!url) {
-      url = await new Promise(function(res) {
-        const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file);
-      });
-    }
-    if (!url) return;
-    restoreSel();
-    const img = document.createElement("img");
-    img.src = url;
-    img.style.maxWidth = "100%";
-    img.style.borderRadius = "10px";
-    img.style.display = "block";
-    img.style.margin = "8px 0";
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      range.insertNode(img);
-      range.collapse(false);
-    } else if (editorRef.current) {
-      editorRef.current.appendChild(img);
-    }
-    const p = document.createElement("p");
-    p.innerHTML = "<br/>";
-    if (img.parentNode) img.parentNode.insertBefore(p, img.nextSibling);
-    if (editorRef.current) editorRef.current.focus();
-  };
-
-  const handleImgChange = (e) => {
-    const files = Array.from(e.target.files);
-    e.target.value = "";
-    files.reduce(function(p, f) { return p.then(function() { return insertImg(f); }); }, Promise.resolve());
-  };
-
-  const handleVidChange = async (e) => {
-    const files = Array.from(e.target.files);
-    e.target.value = "";
-    await files.reduce(function(p, f) {
-      return p.then(async function() {
-        let url = await uploadToStorage(f);
-        if (!url) {
-          url = await new Promise(function(res) {
-            const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f);
-          });
-        }
-        if (!url) return;
-        restoreSel();
-        const vid = document.createElement("video");
-        vid.src = url; vid.controls = true;
-        vid.style.maxWidth = "100%"; vid.style.borderRadius = "10px"; vid.style.display = "block"; vid.style.margin = "8px 0";
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) { const r = sel.getRangeAt(0); r.insertNode(vid); r.collapse(false); }
-        else if (editorRef.current) editorRef.current.appendChild(vid);
-        const p = document.createElement("p"); p.innerHTML = "<br/>";
-        if (vid.parentNode) vid.parentNode.insertBefore(p, vid.nextSibling);
-        if (editorRef.current) editorRef.current.focus();
-      });
-    }, Promise.resolve());
-  };
-
-  const handlePaste = (e) => {
-    const items = e.clipboardData ? Array.from(e.clipboardData.items) : [];
-    const imgItems = items.filter(function(i) { return i.type.startsWith("image/"); });
-    if (!imgItems.length) return;
-    e.preventDefault();
-    imgItems.reduce(function(p, item) {
-      return p.then(function() {
-        const file = item.getAsFile();
-        return file ? insertImg(file) : Promise.resolve();
-      });
-    }, Promise.resolve());
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    files.reduce(function(p, f) {
-      return p.then(function() {
-        if (f.type.startsWith("image/")) return insertImg(f);
-        return Promise.resolve();
-      });
-    }, Promise.resolve());
-  };
-
+  // 저장
   const handleSubmit = () => {
     const errs = {};
     if (!title.trim()) errs.title = "제목을 입력해주세요";
     if (!author.trim()) errs.author = "작성자를 선택해주세요";
     if (Object.keys(errs).length) { setErrors(errs); return; }
-    const el = editorRef.current;
-    // textarea를 읽기전용 div로 변환해서 저장
-    var cloned = el ? el.cloneNode(true) : null;
-    if (cloned) {
-      cloned.querySelectorAll("textarea").forEach(function(ta) {
-        var div = document.createElement("div");
-        div.style.cssText = ta.style.cssText;
-        div.style.whiteSpace = "pre-wrap";
-        div.textContent = ta.value || ta.placeholder || "";
-        if (ta.parentNode) ta.parentNode.replaceChild(div, ta);
-      });
-    }
-    const editorHtml = cloned ? cloned.innerHTML : "";
-    const body = el ? (el.innerText || "") : "";
+
+    // 블록들을 HTML로 직렬화
+    let editorHtml = "";
+    let body = "";
+    blocks.forEach(b => {
+      if (b.type === "text" || b.type === "html") {
+        const el = blockRefs.current[b.id];
+        const html = el ? el.innerHTML : b.content || "";
+        // textarea → div 변환
+        const tmp = document.createElement("div");
+        tmp.innerHTML = html;
+        tmp.querySelectorAll("textarea").forEach(ta => {
+          const d = document.createElement("div");
+          d.style.cssText = ta.style.cssText; d.style.whiteSpace = "pre-wrap";
+          d.textContent = ta.value || ""; ta.parentNode.replaceChild(d, ta);
+        });
+        editorHtml += tmp.innerHTML;
+        body += (el ? el.innerText : "") + "\n";
+      } else if (b.type === "image") {
+        editorHtml += `<img src="${b.src}" style="max-width:100%;border-radius:10px;display:block;margin:8px 0;" />`;
+      } else if (b.type === "video") {
+        editorHtml += `<video src="${b.src}" controls style="max-width:100%;border-radius:10px;display:block;margin:8px 0;"></video>`;
+      } else if (b.type === "layout") {
+        editorHtml += b.html || "";
+      }
+    });
+
     onSubmit({
-      editorHtml, body,
-      blocks: [{ id: Date.now(), type: "text", content: body }],
-      images: [], videos: [], files: [],
+      editorHtml, body: body.trim(),
+      blocks: [], images: [], videos: [], files: [],
       category, title, emoji, tag, author,
-      summary: body.slice(0, 80) + (body.length > 80 ? "..." : ""),
-      url: (editPost && editPost.url) || "",
-      id: (editPost && editPost.id) || Date.now(),
-      categoryLabel: (CATEGORIES.find(function(c) { return c.id === category; }) || {}).label || "",
-      date: (editPost && editPost.date) || new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").replace(/\.$/, ""),
-      likes: (editPost && editPost.likes) || 0,
-      bookmarked: (editPost && editPost.bookmarked) || false,
-      liked: (editPost && editPost.liked) || false,
-      comments: (editPost && editPost.comments) || [],
+      summary: body.trim().slice(0, 80) + (body.trim().length > 80 ? "..." : ""),
+      url: editPost?.url || "", id: editPost?.id || Date.now(),
+      categoryLabel: (CATEGORIES.find(c => c.id === category) || {}).label || "",
+      date: editPost?.date || new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\. /g,".").replace(/\.$/,""),
+      likes: editPost?.likes || 0, bookmarked: editPost?.bookmarked || false,
+      liked: editPost?.liked || false, comments: editPost?.comments || [],
     });
     onClose();
   };
 
+  const tbBtn = { border:"none", background:"none", width:"30px", height:"30px", borderRadius:"5px", cursor:"pointer", fontSize:"14px", display:"flex", alignItems:"center", justifyContent:"center" };
 
-  const tbBtn = { border: "none", background: "none", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" };
+  // 텍스트 블록 onMouseUp (링크/형광펜 팝업)
+  const handleBlockMouseUp = (e, blockId) => {
+    activeBlockId.current = blockId;
+    saveSel();
+    const target = e.target;
+    if (target?.getAttribute("data-ph") === "true") {
+      target.innerHTML = "<br/>"; target.style.color = ""; target.removeAttribute("data-ph");
+      const range = document.createRange(); range.setStart(target,0); range.collapse(true);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      return;
+    }
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top - 56 - 18;
+      setLinkPopupPos({ x: Math.max(100, Math.min(x, window.innerWidth-100)), y: y < 10 ? rect.bottom + 18 : y });
+      setShowSelMenu(true); setShowLink(false); setShowHighlight(false);
+    } else {
+      setShowSelMenu(false); setShowLink(false); setShowHighlight(false);
+    }
+  };
+
+  // 블록 렌더
+  const renderBlock = (block, idx) => {
+    const isDragTarget = dragOver === block.id;
+    return (
+      <div key={block.id}
+        onDragOver={(e) => onDragOverBlock(e, block.id)}
+        onDrop={(e) => onDropBlock(e, block.id)}
+        onMouseEnter={e => { const h = e.currentTarget.querySelector("[data-drag-handle]"); if(h) h.style.opacity="1"; }}
+        onMouseLeave={e => { const h = e.currentTarget.querySelector("[data-drag-handle]"); if(h) h.style.opacity="0"; }}
+        style={{ position:"relative", marginBottom:"0", paddingLeft:"28px", borderTop: isDragTarget ? "3px solid #4338CA" : "3px solid transparent", transition:"border-color 0.1s" }}
+      >
+        {/* 드래그 핸들 - 텍스트 포함 모든 블록 */}
+        <div data-drag-handle="true"
+          draggable
+          onDragStart={(e) => { e.stopPropagation(); onDragStart(e, block.id); }}
+          onDragEnd={onDragEnd}
+          style={{ position:"absolute", left:"0", top:"50%", transform:"translateY(-50%)", cursor:"grab", color:"#CCCCCC", fontSize:"16px", opacity:0, transition:"opacity 0.15s", userSelect:"none", WebkitUserSelect:"none", zIndex:10, padding:"4px 6px", borderRadius:"4px" }}
+          onMouseDown={e=>e.stopPropagation()}
+          onMouseEnter={e=>{ e.currentTarget.style.opacity="1"; e.currentTarget.style.background="#F0F0EE"; e.currentTarget.style.color="#888"; }}
+          onMouseLeave={e=>{ e.currentTarget.style.opacity="0"; e.currentTarget.style.background="none"; e.currentTarget.style.color="#CCCCCC"; }}
+        >⠿</div>
+
+        {block.type === "image" && (
+          <div style={{ position:"relative", display:"inline-block", width:"100%" }}>
+            <img src={block.src} alt="" style={{ maxWidth:"100%", borderRadius:"10px", display:"block", margin:"4px 0" }} />
+            <button onClick={()=>removeBlock(block.id)} style={{ position:"absolute", top:"6px", right:"6px", border:"none", background:"rgba(0,0,0,0.5)", color:"#fff", borderRadius:"50%", width:"22px", height:"22px", cursor:"pointer", fontSize:"13px", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+          </div>
+        )}
+        {block.type === "video" && (
+          <div style={{ position:"relative" }}>
+            <video src={block.src} controls style={{ maxWidth:"100%", borderRadius:"10px", display:"block", margin:"4px 0" }} />
+            <button onClick={()=>removeBlock(block.id)} style={{ position:"absolute", top:"6px", right:"6px", border:"none", background:"rgba(0,0,0,0.5)", color:"#fff", borderRadius:"50%", width:"22px", height:"22px", cursor:"pointer", fontSize:"13px" }}>×</button>
+          </div>
+        )}
+        {block.type === "layout" && (
+          <div style={{ position:"relative" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", margin:"8px 0" }}>
+              {[0,1].map(i => {
+                const cellMedia = block.cells && block.cells[i];
+                return (
+                  <div key={i} style={{ border:"2px dashed #E0E0E0", borderRadius:"10px", minHeight:"130px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"8px", background:"#FAFAFA", position:"relative", overflow:"hidden" }}>
+                    {cellMedia ? (
+                      cellMedia.type === "image"
+                        ? <img src={cellMedia.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:"8px", position:"absolute", inset:0 }} />
+                        : <video src={cellMedia.src} controls style={{ width:"100%", borderRadius:"8px" }} />
+                    ) : (
+                      <>
+                        <button type="button" onClick={()=>{ activeBlockId.current = block.id + "_" + i; if(imgRef.current){ imgRef.current._cellIdx = i; imgRef.current._layoutId = block.id; imgRef.current.click(); } }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"7px", padding:"5px 10px", fontSize:"12px", cursor:"pointer", color:"#555" }}>🖼️ 사진</button>
+                        <button type="button" onClick={()=>{ if(vidRef.current){ vidRef.current._cellIdx = i; vidRef.current._layoutId = block.id; vidRef.current.click(); } }} style={{ border:"1px solid #E0E0E0", background:"#fff", borderRadius:"7px", padding:"5px 10px", fontSize:"12px", cursor:"pointer", color:"#555" }}>🎬 영상</button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={()=>removeBlock(block.id)} style={{ position:"absolute", top:"-6px", right:"-6px", border:"none", background:"#FFE0E0", color:"#FF6B6B", borderRadius:"50%", width:"20px", height:"20px", cursor:"pointer", fontSize:"12px" }}>×</button>
+          </div>
+        )}
+        {(block.type === "text" || block.type === "html") && (
+          <div ref={el => {
+              blockRefs.current[block.id] = el;
+              if (!el) return;
+              // × 버튼 이벤트 바인딩
+              el.querySelectorAll("button[data-del-section]").forEach(btn => {
+                if (!btn._bound) {
+                  btn._bound = true;
+                  btn.addEventListener("click", e => {
+                    e.preventDefault(); e.stopPropagation();
+                    const w = btn.parentNode;
+                    if (w && w.parentNode) w.parentNode.removeChild(w);
+                  });
+                }
+              });
+            }}
+            contentEditable suppressContentEditableWarning
+            onFocus={() => { activeBlockId.current = block.id; }}
+            onMouseUp={(e) => handleBlockMouseUp(e, block.id)}
+            onKeyUp={saveSel}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
+              // Enter = 같은 블록 안에서 줄바꿈 (한 문단처럼)
+              // Shift+Enter = 새 블록 추가
+              if (e.key === "Enter" && e.shiftKey) {
+                e.preventDefault();
+                const newId = Date.now();
+                setBlocks(bs => {
+                  const idx = bs.findIndex(b => b.id === block.id);
+                  const newBs = [...bs];
+                  newBs.splice(idx + 1, 0, { id: newId, type: "text", content: "" });
+                  return newBs;
+                });
+                setTimeout(() => {
+                  const el = blockRefs.current[newId];
+                  if (el) {
+                    el.focus(); activeBlockId.current = newId;
+                    const r = document.createRange(); r.setStart(el, 0); r.collapse(true);
+                    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+                  }
+                }, 30);
+                return;
+              }
+              // Enter 단독 = 형광펜 탈출만 처리, 나머지는 브라우저 기본(줄바꿈)
+              if (e.key === "Enter" && !e.shiftKey) {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                  const node = sel.getRangeAt(0).startContainer;
+                  let cur = node.nodeType === 3 ? node.parentNode : node;
+                  while (cur && cur !== e.currentTarget) {
+                    if (cur.tagName === "SPAN" && cur.style?.backgroundColor) {
+                      e.preventDefault();
+                      const newP = document.createElement("p"); newP.innerHTML = "<br/>";
+                      cur.parentNode.insertBefore(newP, cur.nextSibling);
+                      const r = document.createRange(); r.setStart(newP, 0); r.collapse(true);
+                      sel.removeAllRanges(); sel.addRange(r);
+                      return;
+                    }
+                    cur = cur.parentNode;
+                  }
+                }
+                // 기본 동작(줄바꿈) 허용
+                return;
+              }
+              // Backspace: 블록 맨 앞에서 누르면 이전 블록과 합치기
+              if (e.key === "Backspace") {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                  const range = sel.getRangeAt(0);
+                  const el = blockRefs.current[block.id];
+                  // 커서가 블록 맨 앞이고 선택 없을 때
+                  const atStart = range.collapsed &&
+                    range.startOffset === 0 &&
+                    (range.startContainer === el ||
+                     (range.startContainer.nodeType === 3 && range.startContainer === el.firstChild && range.startOffset === 0) ||
+                     range.startContainer === el.querySelector("p, br") || 
+                     (!range.startContainer.previousSibling && range.startContainer.parentNode === el));
+                  
+                  if (atStart && el) {
+                    const text = el.innerText?.trim();
+                    // 비어있거나 맨 앞이면 이전 블록과 합치기
+                    setBlocks(bs => {
+                      const idx = bs.findIndex(b => b.id === block.id);
+                      if (idx === 0) return bs; // 첫 블록이면 그냥 둠
+                      const prev = bs[idx - 1];
+                      if (prev.type !== "text" && prev.type !== "html") return bs; // 이전이 미디어면 스킵
+                      // 이전 블록 내용 + 현재 블록 내용 합치기
+                      const prevEl = blockRefs.current[prev.id];
+                      const prevHtml = prevEl ? prevEl.innerHTML : prev.content || "";
+                      const curHtml = el ? el.innerHTML : "";
+                      const merged = prevHtml + curHtml;
+                      const newBs = bs.filter(b => b.id !== block.id);
+                      const prevIdx = newBs.findIndex(b => b.id === prev.id);
+                      newBs[prevIdx] = { ...prev, content: merged };
+                      // 이전 블록 끝으로 커서 이동
+                      e.preventDefault();
+                      setTimeout(() => {
+                        const prevElNew = blockRefs.current[prev.id];
+                        if (prevElNew) {
+                          prevElNew.focus(); activeBlockId.current = prev.id;
+                          const r = document.createRange();
+                          r.selectNodeContents(prevElNew); r.collapse(false);
+                          const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+                        }
+                      }, 20);
+                      return newBs;
+                    });
+                  }
+                }
+              }
+            }}
+            dangerouslySetInnerHTML={block.type === "html" ? { __html: block.content } : undefined}
+            style={{ minHeight:"28px", outline:"none", fontSize:"15px", lineHeight:1.6, color:"#333", wordBreak:"break-word", padding:"2px 0" }}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, display: "flex", flexDirection: "column", fontFamily: "Pretendard, -apple-system, sans-serif" }}>
-      {/* 드래그 선택 팝업 */}
+    <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:200, display:"flex", flexDirection:"column", fontFamily:"Pretendard, -apple-system, sans-serif" }}>
+      <input ref={imgRef} type="file" accept="image/*" multiple onChange={(e) => {
+        const files = Array.from(e.target.files); e.target.value = "";
+        const lid = imgRef.current._layoutId;
+        const ci = imgRef.current._cellIdx;
+        if (lid !== undefined && ci !== undefined) {
+          files.forEach(f => {
+            (async () => {
+              let url = await uploadToStorage(f);
+              if (!url) url = await new Promise(res => { const r = new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); });
+              setBlocks(bs => bs.map(b => b.id === lid ? {...b, cells: Object.assign([], b.cells||[], {[ci]:{type:"image",src:url}})} : b));
+            })();
+          });
+          imgRef.current._layoutId = undefined; imgRef.current._cellIdx = undefined;
+        } else { files.forEach(f => insertImgToBlock(f, activeBlockId.current)); }
+      }} style={{ display:"none" }} />
+      <input ref={vidRef} type="file" accept="video/*" multiple onChange={(e) => {
+        const files = Array.from(e.target.files); e.target.value = "";
+        const lid = vidRef.current._layoutId;
+        const ci = vidRef.current._cellIdx;
+        if (lid !== undefined && ci !== undefined) {
+          files.forEach(f => {
+            (async () => {
+              let url = await uploadToStorage(f);
+              if (!url) url = await new Promise(res => { const r = new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); });
+              setBlocks(bs => bs.map(b => b.id === lid ? {...b, cells: Object.assign([], b.cells||[], {[ci]:{type:"video",src:url}})} : b));
+            })();
+          });
+          vidRef.current._layoutId = undefined; vidRef.current._cellIdx = undefined;
+        } else { files.forEach(f => insertVidToBlock(f, activeBlockId.current)); }
+      }} style={{ display:"none" }} />
+
+      {/* 링크/형광펜 팝업 */}
       {showSelMenu && !showLink && !showHighlight && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"8px 10px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"4px", alignItems:"center" }}>
-          <button type="button" onClick={function(){ setShowHighlight(false); setShowLink(true); setLinkUrl("https://"); }}
-            style={{ border:"none", background:"none", cursor:"pointer", padding:"5px 10px", borderRadius:"7px", display:"flex", flexDirection:"column", alignItems:"center", gap:"2px", color:"#fff" }}
-            onMouseEnter={function(e){ e.currentTarget.style.background="rgba(255,255,255,0.15)"; }}
-            onMouseLeave={function(e){ e.currentTarget.style.background="none"; }}
-          ><span style={{fontSize:"18px"}}>🔗</span><span style={{fontSize:"10px",opacity:0.7}}>링크</span></button>
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"2px", alignItems:"center" }}>
+          <button type="button" onClick={()=>{setShowHighlight(false);setShowLink(true);setLinkUrl("https://");}}
+            style={{border:"none",background:"none",cursor:"pointer",padding:"3px 8px",borderRadius:"6px",display:"flex",flexDirection:"column",alignItems:"center",gap:"1px",color:"#fff"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          ><span style={{fontSize:"15px"}}>🔗</span><span style={{fontSize:"9px",opacity:0.7}}>링크</span></button>
           <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} />
-          <button type="button" onClick={function(){ setShowLink(false); setShowHighlight(true); }}
-            style={{ border:"none", background:"none", cursor:"pointer", padding:"5px 10px", borderRadius:"7px", display:"flex", flexDirection:"column", alignItems:"center", gap:"2px", color:"#fff" }}
-            onMouseEnter={function(e){ e.currentTarget.style.background="rgba(255,255,255,0.15)"; }}
-            onMouseLeave={function(e){ e.currentTarget.style.background="none"; }}
-          ><span style={{fontSize:"18px"}}>🖊️</span><span style={{fontSize:"10px",opacity:0.7}}>형광펜</span></button>
+          <button type="button" onClick={()=>{setShowLink(false);setShowHighlight(true);}}
+            style={{border:"none",background:"none",cursor:"pointer",padding:"3px 8px",borderRadius:"6px",display:"flex",flexDirection:"column",alignItems:"center",gap:"1px",color:"#fff"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          ><span style={{fontSize:"15px"}}>🖊️</span><span style={{fontSize:"9px",opacity:0.7}}>형광펜</span></button>
           <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} />
-          <button type="button" onClick={function(){ setShowSelMenu(false); setShowLink(false); setShowHighlight(false); }} style={{border:"none",background:"none",cursor:"pointer",color:"#888",fontSize:"16px",padding:"4px 6px"}}>✕</button>
+          <button type="button" onClick={()=>{setShowSelMenu(false);setShowLink(false);setShowHighlight(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#888",fontSize:"16px",padding:"4px 6px"}}>✕</button>
         </div>
       )}
-      {/* 링크 URL 입력 */}
       {showSelMenu && showLink && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"10px 12px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center", minWidth:"300px" }}>
-          <button type="button" onClick={function(){setShowLink(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center", minWidth:"280px" }}>
+          <button type="button" onClick={()=>setShowLink(false)} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
           <span style={{fontSize:"14px"}}>🔗</span>
-          <input autoFocus value={linkUrl} onChange={function(e){setLinkUrl(e.target.value);}}
-            onKeyDown={function(e){if(e.key==="Enter"){e.preventDefault();applyLink();}if(e.key==="Escape"){setShowLink(false);}}}
+          <input autoFocus value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();applyLink();}if(e.key==="Escape")setShowLink(false);}}
             placeholder="URL 입력 후 Enter"
             style={{flex:1,border:"none",background:"rgba(255,255,255,0.15)",borderRadius:"6px",padding:"6px 10px",fontSize:"13px",outline:"none",color:"#fff",caretColor:"#fff"}} />
           <button type="button" onClick={applyLink} style={{padding:"6px 12px",borderRadius:"6px",background:"#4338CA",color:"#fff",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:700,whiteSpace:"nowrap"}}>적용</button>
         </div>
       )}
-      {/* 형광펜 색상 선택 */}
       {showSelMenu && showHighlight && (
-        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"10px", padding:"10px 12px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center" }}>
-          <button type="button" onClick={function(){setShowHighlight(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
-          {[["#FEF08A","노랑"],["#BBF7D0","초록"],["#BFDBFE","파랑"],["#FBCFE8","분홍"],["#FED7AA","주황"]].map(function(c){
-            return (
-              <button key={c[0]} type="button"
-                onClick={function(){
-                  if (!savedSel.current) return;
-                  var range = savedSel.current;
-                  var span = document.createElement("span");
-                  span.style.backgroundColor = c[0];
-                  span.style.borderRadius = "3px";
-                  span.style.padding = "1px 2px";
-                  try {
-                    span.appendChild(range.cloneContents());
-                    range.deleteContents();
-                    range.insertNode(span);
-                    var after = document.createRange(); after.setStartAfter(span); after.collapse(true);
-                    var s2 = window.getSelection(); s2.removeAllRanges(); s2.addRange(after);
-                  } catch(ex) {}
-                  setShowSelMenu(false); setShowHighlight(false);
-                }}
-                style={{ width:"26px", height:"26px", borderRadius:"5px", background:c[0], border:"2px solid rgba(255,255,255,0.4)", cursor:"pointer", transition:"transform 0.1s" }}
-                onMouseEnter={function(e){e.currentTarget.style.transform="scale(1.25)";}}
-                onMouseLeave={function(e){e.currentTarget.style.transform="scale(1)";}}
-                title={c[1]}
-              />
-            );
-          })}
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center" }}>
+          <button type="button" onClick={()=>setShowHighlight(false)} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
+          {[["#FEF08A","노랑"],["#BBF7D0","초록"],["#BFDBFE","파랑"],["#FBCFE8","분홍"],["#FED7AA","주황"]].map(c=>(
+            <button key={c[0]} type="button"
+              onClick={()=>{
+                if (!savedSel.current) return;
+                const range = savedSel.current;
+                const span = document.createElement("span");
+                span.style.backgroundColor = c[0]; span.style.borderRadius = "3px"; span.style.padding = "1px 2px";
+                try { span.appendChild(range.cloneContents()); range.deleteContents(); range.insertNode(span); } catch(ex){}
+                setShowSelMenu(false); setShowHighlight(false);
+                if (activeBlockId.current) {
+                  const el = blockRefs.current[activeBlockId.current];
+                  if (el) updateBlock(activeBlockId.current, { content: el.innerHTML });
+                }
+              }}
+              style={{width:"22px",height:"22px",borderRadius:"4px",background:c[0],border:"2px solid rgba(255,255,255,0.4)",cursor:"pointer"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.25)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}
+              title={c[1]}
+            />
+          ))}
         </div>
       )}
-      {/* 색깔 블록 팝업 - fixed */}
       {showColorBox && (
-        <div style={{ position: "fixed", bottom: "80px", left: "50%", transform: "translateX(-50%)", background: "#fff", border: "1px solid #E0E0E0", borderRadius: "12px", padding: "12px", zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,0.16)", display: "flex", gap: "8px", alignItems: "center" }}>
-          {[
-            { label: "파랑", bg: "#EFF6FF", border: "#BFDBFE", text: "#1E40AF", icon: "🔵" },
-            { label: "초록", bg: "#F0FDF4", border: "#BBF7D0", text: "#166534", icon: "🟢" },
-            { label: "노랑", bg: "#FEFCE8", border: "#FDE68A", text: "#92400E", icon: "🟡" },
-            { label: "빨강", bg: "#FFF1F2", border: "#FECDD3", text: "#BE123C", icon: "🔴" },
-            { label: "보라", bg: "#F5F3FF", border: "#DDD6FE", text: "#5B21B6", icon: "🟣" },
-          ].map(function(col) {
-            return (
-              <button key={col.label} type="button"
-                onClick={function() {
-                  var el = editorRef.current; if (!el) return; el.focus();
-                  // textarea를 색깔 박스 스타일로 삽입
-                  var wrapper = document.createElement("div");
-                  wrapper.setAttribute("contenteditable", "false");
-                  wrapper.style.cssText = "margin:10px 0;display:block;";
-                  var ta = document.createElement("textarea");
-                  ta.placeholder = "내용을 입력하세요...";
-                  ta.rows = 1;
-                  ta.style.cssText = "width:100%;background:"+col.bg+";border-left:4px solid "+col.border+";border-radius:0 8px 8px 0;padding:12px 16px;color:"+col.text+";font-size:14px;line-height:1.8;font-family:inherit;border-top:none;border-right:none;border-bottom:none;outline:none;resize:none;overflow:hidden;display:block;box-sizing:border-box;";
-                  ta.addEventListener("input", function() {
-                    ta.style.height = "auto";
-                    ta.style.height = ta.scrollHeight + "px";
-                  });
-                  wrapper.appendChild(ta);
-                  var pAfter = document.createElement("p"); pAfter.innerHTML = "<br/>";
-                  if (savedSel.current) {
-                    try { var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSel.current); var range=sel.getRangeAt(0); range.collapse(false); range.insertNode(pAfter); range.insertNode(wrapper); }
-                    catch(ex) { el.appendChild(wrapper); el.appendChild(pAfter); }
-                  } else { el.appendChild(wrapper); el.appendChild(pAfter); }
-                  setTimeout(function() { ta.focus(); }, 10);
-                  setShowColorBox(false);
-                }}
-                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"3px", border:"2px solid "+col.border, background:col.bg, borderRadius:"8px", padding:"8px 10px", cursor:"pointer", fontSize:"11px", color:col.text, fontWeight:600, minWidth:"46px" }}
-                onMouseEnter={function(e){e.currentTarget.style.opacity="0.75";}}
-                onMouseLeave={function(e){e.currentTarget.style.opacity="1";}}
-              ><span style={{fontSize:"16px"}}>{col.icon}</span>{col.label}</button>
-            );
-          })}
-          <button type="button" onClick={function(){setShowColorBox(false);}} style={{border:"none",background:"none",cursor:"pointer",fontSize:"16px",color:"#888",padding:"4px",marginLeft:"4px"}}>✕</button>
+        <div style={{ position:"fixed", bottom:"80px", left:"50%", transform:"translateX(-50%)", background:"#fff", border:"1px solid #E0E0E0", borderRadius:"12px", padding:"12px", zIndex:9999, boxShadow:"0 8px 32px rgba(0,0,0,0.16)", display:"flex", gap:"8px", alignItems:"center" }}>
+          {[{label:"파랑",bg:"#EFF6FF",border:"#BFDBFE",text:"#1E40AF",icon:"🔵"},{label:"초록",bg:"#F0FDF4",border:"#BBF7D0",text:"#166534",icon:"🟢"},{label:"노랑",bg:"#FEFCE8",border:"#FDE68A",text:"#92400E",icon:"🟡"},{label:"빨강",bg:"#FFF1F2",border:"#FECDD3",text:"#BE123C",icon:"🔴"},{label:"보라",bg:"#F5F3FF",border:"#DDD6FE",text:"#5B21B6",icon:"🟣"}].map(col=>(
+            <button key={col.label} type="button"
+              onClick={()=>{
+                const el = activeBlockId.current ? blockRefs.current[activeBlockId.current] : null;
+                if (!el) return;
+                const wrapper = document.createElement("div");
+                wrapper.setAttribute("contenteditable","false");
+                wrapper.style.cssText = "margin:10px 0;display:block;";
+                const ta = document.createElement("textarea");
+                ta.rows=1; ta.placeholder="내용을 입력하세요...";
+                ta.style.cssText = "width:100%;background:"+col.bg+";border-left:4px solid "+col.border+";border-radius:0 8px 8px 0;padding:12px 16px;color:"+col.text+";font-size:14px;line-height:1.8;font-family:inherit;border-top:none;border-right:none;border-bottom:none;outline:none;resize:none;overflow:hidden;display:block;box-sizing:border-box;";
+                ta.addEventListener("input",()=>{ta.style.height="auto";ta.style.height=ta.scrollHeight+"px";});
+                wrapper.appendChild(ta);
+                if (savedSel.current) {
+                  try { const s=window.getSelection();s.removeAllRanges();s.addRange(savedSel.current);const r=s.getRangeAt(0);r.collapse(false);const p=document.createElement("p");p.innerHTML="<br/>";r.insertNode(p);r.insertNode(wrapper); } catch(ex){el.appendChild(wrapper);}
+                } else el.appendChild(wrapper);
+                setTimeout(()=>ta.focus(),10);
+                setShowColorBox(false);
+              }}
+              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",border:"2px solid "+col.border,background:col.bg,borderRadius:"8px",padding:"8px 10px",cursor:"pointer",fontSize:"11px",color:col.text,fontWeight:600,minWidth:"46px"}}
+              onMouseEnter={e=>e.currentTarget.style.opacity="0.75"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}
+            ><span style={{fontSize:"16px"}}>{col.icon}</span>{col.label}</button>
+          ))}
+          <button type="button" onClick={()=>setShowColorBox(false)} style={{border:"none",background:"none",cursor:"pointer",fontSize:"16px",color:"#888",padding:"4px",marginLeft:"4px"}}>✕</button>
         </div>
       )}
-      <input ref={imgRef}  type="file" accept="image/*" multiple onChange={handleImgChange} style={{ display: "none" }} />
-      <input ref={vidRef}  type="file" accept="video/*" multiple onChange={handleVidChange} style={{ display: "none" }} />
+      {showSectionMenu && (
+        <div style={{ position:"fixed", top:secMenuPos.y+"px", left:secMenuPos.x+"px", background:"#fff", border:"1px solid #E0E0E0", borderRadius:"10px", padding:"6px", zIndex:9999, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", minWidth:"160px", display:"flex", flexDirection:"column", gap:"2px" }}>
+          {[["📰","업계 소식","#D97706"],["🎬","콘텐츠 소식","#7C3AED"],["📈","트렌드 소식","#059669"],["✏️","제작 요청","#2563EB"]].map(sec=>(
+            <button key={sec[1]} type="button"
+              onMouseDown={e=>{
+                e.preventDefault();
+                const el = activeBlockId.current ? blockRefs.current[activeBlockId.current] : null;
+                const wrapper = document.createElement("div");
+                wrapper.setAttribute("contenteditable","false");
+                wrapper.style.cssText = "display:flex;align-items:center;gap:8px;margin:24px 0 12px;position:relative;";
+                wrapper.innerHTML = '<div style="flex:1;height:1.5px;background:#EAEAEA;"></div><span style="font-size:13px;font-weight:700;padding:5px 18px;border-radius:999px;border:2px solid '+sec[2]+';color:'+sec[2]+';background:#fff;white-space:nowrap;">'+sec[0]+' '+sec[1]+'</span><div style="flex:1;height:1.5px;background:#EAEAEA;"></div>';
+                const delBtn = document.createElement("button");
+                delBtn.textContent="×"; delBtn.style.cssText="position:absolute;right:-28px;top:50%;transform:translateY(-50%);border:none;background:#FFE0E0;color:#FF6B6B;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;";
+                delBtn.addEventListener("click",()=>wrapper.parentNode?.removeChild(wrapper));
+                wrapper.appendChild(delBtn);
+                const pContent = document.createElement("p"); pContent.innerHTML='<span data-ph="true" style="color:#BBBBBB;">내용을 입력하세요...</span>';
+                const pAfter = document.createElement("p"); pAfter.innerHTML="<br/>";
+                if (el && savedSel.current) {
+                  try { const s=window.getSelection();s.removeAllRanges();s.addRange(savedSel.current);const r=s.getRangeAt(0);r.collapse(false);r.insertNode(pAfter);r.insertNode(pContent);r.insertNode(wrapper); } catch(ex){el.appendChild(wrapper);el.appendChild(pContent);el.appendChild(pAfter);}
+                } else if (el) { el.appendChild(wrapper);el.appendChild(pContent);el.appendChild(pAfter); }
+                setShowSectionMenu(false);
+              }}
+              style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",border:"none",background:"none",padding:"7px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",color:"#333",textAlign:"left"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#F5F5F3"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+            ><span style={{fontSize:"15px"}}>{sec[0]}</span><span style={{color:sec[2],fontWeight:600}}>{sec[1]}</span></button>
+          ))}
+        </div>
+      )}
 
       {/* 메타 툴바 */}
-      <div style={{ borderBottom: "1px solid #EAEAEA", padding: "0 20px", height: "52px", display: "flex", alignItems: "center", gap: "12px", flexShrink: 0, background: "#fff" }}>
-        <button type="button" onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#888" }}>←</button>
-        <select value={category} onChange={function(e) { setCategory(e.target.value); }} style={{ border: "none", background: "none", fontSize: "13px", fontWeight: 700, color: "#111", outline: "none", cursor: "pointer" }}>
-          {CATEGORIES.filter(function(c) { return c.id !== "all"; }).map(function(c) { return <option key={c.id} value={c.id}>{c.label}</option>; })}
+      <div style={{ borderBottom:"1px solid #EAEAEA", padding:"0 20px", height:"52px", display:"flex", alignItems:"center", gap:"12px", flexShrink:0, background:"#fff" }}>
+        <button type="button" onClick={onClose} style={{border:"none",background:"none",cursor:"pointer",fontSize:"20px",color:"#888"}}>←</button>
+        <select value={category} onChange={e=>handleCategoryChange(e.target.value)} style={{border:"none",background:"none",fontSize:"13px",fontWeight:700,color:"#111",outline:"none",cursor:"pointer"}}>
+          {CATEGORIES.filter(c=>c.id!=="all").map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
-        <div style={{ width: "1px", height: "20px", background: "#EAEAEA" }} />
-        <select value={author} onChange={function(e) { setAuthor(e.target.value); }} style={{ border: "none", background: "none", fontSize: "13px", color: author ? "#333" : "#AAA", outline: "none", cursor: "pointer" }}>
-          <option value="" disabled={true}>작성자</option>
-          {TEAM_MEMBERS.map(function(m) { return <option key={m} value={m}>{m}</option>; })}
+        <div style={{width:"1px",height:"20px",background:"#EAEAEA"}} />
+        <select value={author} onChange={e=>setAuthor(e.target.value)} style={{border:"none",background:"none",fontSize:"13px",color:author?"#333":"#AAA",outline:"none",cursor:"pointer"}}>
+          <option value="" disabled>작성자</option>
+          {TEAM_MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}
         </select>
-        {errors.author && <span style={{ fontSize: "11px", color: "#FF6B6B" }}>{errors.author}</span>}
-        <div style={{ flex: 1 }} />
-        <input value={tag} onChange={function(e) { setTag(e.target.value); }} placeholder="#태그" style={{ border: "none", background: "#F5F5F3", borderRadius: "7px", padding: "5px 10px", fontSize: "12px", outline: "none", width: "80px" }} />
-        <button type="button" onClick={handleSubmit} style={{ padding: "7px 18px", borderRadius: "8px", border: "none", background: "#111", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          {editPost ? "수정 완료" : "등록 →"}
-        </button>
+        {errors.author && <span style={{fontSize:"11px",color:"#FF6B6B"}}>{errors.author}</span>}
+        <div style={{flex:1}} />
+        <input value={tag} onChange={e=>setTag(e.target.value)} placeholder="#태그" style={{border:"none",background:"#F5F5F3",borderRadius:"7px",padding:"5px 10px",fontSize:"12px",outline:"none",width:"80px"}} />
+        <button type="button" onClick={handleSubmit} style={{padding:"7px 18px",borderRadius:"8px",border:"none",background:"#111",color:"#fff",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{editPost?"수정 완료":"등록 →"}</button>
       </div>
 
       {/* 서식 툴바 */}
-      <div style={{ borderBottom: "1px solid #EAEAEA", padding: "0 16px", height: "44px", display: "flex", alignItems: "center", gap: "2px", flexShrink: 0, background: "#FAFAF9", overflowX: "visible", position: "relative", zIndex: 10 }}>
-        {[
-          { l: "B", c: "bold", s: { fontWeight: 800 } },
-          { l: "I", c: "italic", s: { fontStyle: "italic" } },
-          { l: <span style={{ textDecoration: "underline" }}>U</span>, c: "underline", s: {} },
-          { l: <span style={{ textDecoration: "line-through" }}>S</span>, c: "strikeThrough", s: {} },
-        ].map(function(btn, i) {
-          return (
-            <button key={i} type="button"
-              onMouseDown={function(e) { e.preventDefault(); saveSel(); cmd(btn.c); }}
-              style={Object.assign({}, tbBtn, btn.s)}
-              onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-              onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
-            >{btn.l}</button>
-          );
-        })}
-        <div style={{ width: "1px", height: "20px", background: "#E0E0E0", margin: "0 4px" }} />
-        {[["←","justifyLeft"],["↔","justifyCenter"],["→","justifyRight"]].map(function(pair) {
-          return (
-            <button key={pair[1]} type="button"
-              onMouseDown={function(e) { e.preventDefault(); saveSel(); cmd(pair[1]); }}
-              style={tbBtn}
-              onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-              onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
-            >{pair[0]}</button>
-          );
-        })}
-        <div style={{ width: "1px", height: "20px", background: "#E0E0E0", margin: "0 4px" }} />
-        {/* 글자 크기 - 인라인 버튼 */}
-        {[["소","13px"],["중","15px"],["대","18px"],["특대","22px"]].map(function(sz) {
-          return (
-            <button key={sz[0]} type="button"
-              onMouseDown={function(e) {
-                e.preventDefault();
-                restoreSel();
-                var sel = window.getSelection();
-                if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-                  var range = sel.getRangeAt(0);
-                  var span = document.createElement("span");
-                  span.style.fontSize = sz[1];
-                  try { range.surroundContents(span); } catch(err) {
-                    var frag = range.extractContents();
-                    span.appendChild(frag);
-                    range.insertNode(span);
-                  }
-                  sel.removeAllRanges();
-                }
-                if (editorRef.current) editorRef.current.focus();
-              }}
-              style={{ border: "1px solid #E0E0E0", background: "#fff", borderRadius: "5px", padding: "0 7px", height: "28px", fontSize: "11px", fontWeight: 600, cursor: "pointer", color: "#555" }}
-              onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-              onMouseLeave={function(e) { e.currentTarget.style.background = "#fff"; }}
-            >{sz[0]}</button>
-          );
-        })}
-        {/* 하이퍼링크 */}
-        <div style={{ position: "relative" }}>
-          <button type="button"
-            onMouseDown={function(e) { e.preventDefault(); saveSel(); setShowLink(function(v) { return !v; }); }}
-            style={{ border: "none", background: "none", width: "30px", height: "30px", borderRadius: "5px", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}
-            onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-            onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
-            title="링크 삽입"
-          >🔗</button>
-
-        </div>
-        {/* 색깔 블록 */}
-        <div style={{ position: "relative" }}>
-          <button type="button"
-            onMouseDown={function(e) { e.preventDefault(); saveSel(); setShowColorBox(function(v) { return !v; }); }}
-            style={{ border: "none", background: "none", width: "30px", height: "30px", borderRadius: "5px", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#555" }}
-            onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-            onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
-            title="색깔 블록"
-          >▦</button>
-
-        </div>
-                <div style={{ width: "1px", height: "20px", background: "#E0E0E0", margin: "0 4px" }} />
-        {/* 미디어 */}
+      <div style={{ borderBottom:"1px solid #EAEAEA", padding:"0 16px", height:"44px", display:"flex", alignItems:"center", gap:"2px", flexShrink:0, background:"#FAFAF9", overflowX:"visible", position:"relative", zIndex:10 }}>
+        {[{l:"B",c:"bold",s:{fontWeight:800}},{l:"I",c:"italic",s:{fontStyle:"italic"}},{l:<span style={{textDecoration:"underline"}}>U</span>,c:"underline",s:{}},{l:<span style={{textDecoration:"line-through"}}>S</span>,c:"strikeThrough",s:{}}].map((btn,i)=>(
+          <button key={i} type="button"
+            onMouseDown={e=>{e.preventDefault();document.execCommand(btn.c,false,null);}}
+            style={Object.assign({},tbBtn,btn.s)}
+            onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          >{btn.l}</button>
+        ))}
+        <div style={{width:"1px",height:"20px",background:"#E0E0E0",margin:"0 4px"}} />
+        {[["←","justifyLeft"],["↔","justifyCenter"],["→","justifyRight"]].map(pair=>(
+          <button key={pair[1]} type="button"
+            onMouseDown={e=>{e.preventDefault();document.execCommand(pair[1],false,null);}}
+            style={tbBtn}
+            onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          >{pair[0]}</button>
+        ))}
+        <div style={{width:"1px",height:"20px",background:"#E0E0E0",margin:"0 4px"}} />
+        {[["소","13px"],["중","15px"],["대","18px"],["특대","22px"]].map(sz=>(
+          <button key={sz[0]} type="button"
+            onMouseDown={e=>{
+              e.preventDefault();
+              const sel=window.getSelection();
+              if(sel&&!sel.isCollapsed&&sel.rangeCount>0){
+                const range=sel.getRangeAt(0); const span=document.createElement("span"); span.style.fontSize=sz[1];
+                try{range.surroundContents(span);}catch(err){const frag=range.extractContents();span.appendChild(frag);range.insertNode(span);}
+                sel.removeAllRanges();
+              }
+            }}
+            style={{border:"1px solid #E0E0E0",background:"#fff",borderRadius:"5px",padding:"0 7px",height:"28px",fontSize:"11px",fontWeight:600,cursor:"pointer",color:"#555"}}
+            onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}
+          >{sz[0]}</button>
+        ))}
+        <div style={{width:"1px",height:"20px",background:"#E0E0E0",margin:"0 4px"}} />
+        {/* 미디어 레이아웃 */}
         <button type="button"
-          onMouseDown={saveSel}
-          onClick={function(){ if(imgRef.current) imgRef.current.click(); }}
-          style={Object.assign({}, tbBtn, { cursor: "pointer" })}
-          onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-          onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
+          onMouseDown={e=>{
+            e.preventDefault();
+            setBlocks(bs=>[...bs, {id:Date.now(),type:"layout",cells:[null,null]}]);
+          }}
+          style={Object.assign({},tbBtn,{fontSize:"15px"})}
+          onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          title="미디어 2열 레이아웃"
+        >⊞</button>
+        {/* 사진 */}
+        <button type="button" onClick={()=>{ activeBlockId.current=null; if(imgRef.current)imgRef.current.click(); }}
+          style={tbBtn} onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          title="사진 삽입"
         >🖼️</button>
-        <button type="button"
-          onMouseDown={saveSel}
-          onClick={function(){ if(vidRef.current) vidRef.current.click(); }}
-          style={Object.assign({}, tbBtn, { cursor: "pointer" })}
-          onMouseEnter={function(e) { e.currentTarget.style.background = "#EBEBEB"; }}
-          onMouseLeave={function(e) { e.currentTarget.style.background = "none"; }}
+        {/* 영상 */}
+        <button type="button" onClick={()=>{ activeBlockId.current=null; if(vidRef.current)vidRef.current.click(); }}
+          style={tbBtn} onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          title="영상 삽입"
         >🎬</button>
+        <div style={{width:"1px",height:"20px",background:"#E0E0E0",margin:"0 4px"}} />
+        {/* 색깔 블록 */}
+        <button type="button"
+          onMouseDown={e=>{e.preventDefault();saveSel();setShowColorBox(v=>!v);}}
+          style={Object.assign({},tbBtn,{fontSize:"13px",fontWeight:700,color:"#555"})}
+          onMouseEnter={e=>e.currentTarget.style.background="#EBEBEB"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          title="색깔 블록"
+        >▦</button>
+        {/* B레터 섹션 추가 */}
+        {category === "b-letter" && (
+          <button type="button"
+            onMouseDown={e=>{
+              e.preventDefault(); saveSel();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setSecMenuPos({x:rect.left, y:rect.bottom+4});
+              setShowSectionMenu(v=>!v);
+            }}
+            style={{border:"1px solid #D97706",background:"#FFFBEB",borderRadius:"5px",padding:"0 8px",height:"28px",fontSize:"12px",color:"#D97706",cursor:"pointer",whiteSpace:"nowrap",fontWeight:600}}
+            onMouseEnter={e=>e.currentTarget.style.background="#FEF3C7"} onMouseLeave={e=>e.currentTarget.style.background="#FFFBEB"}
+          >+ 섹션</button>
+        )}
       </div>
 
-      {/* 에디터 본문 */}
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", justifyContent: "center", background: "#fff" }}
-        onDragOver={function(e) { e.preventDefault(); }} onDrop={handleDrop}
-        onClick={function() { setShowSzMenu(false); }}
+      {/* 에디터 본문 - 블록 리스트 */}
+      <div style={{flex:1, overflowY:"auto", display:"flex", justifyContent:"center", background:"#fff"}}
+        onClick={()=>{setShowColorBox(false); setShowSectionMenu(false);}}
       >
-        <div style={{ width: "100%", maxWidth: "760px", padding: "0 32px 120px" }}>
-          <input value={title} onChange={function(e) { setTitle(e.target.value); }}
-            placeholder="제목을 입력하세요"
-            style={{ width: "100%", border: "none", outline: "none", background: "none", fontSize: "28px", fontWeight: 800, lineHeight: 1.3, color: "#111", padding: "36px 0 16px", borderBottom: errors.title ? "2px solid #FF6B6B" : "1.5px solid #EAEAEA", marginBottom: "24px", display: "block" }}
-          />
+        <div style={{width:"100%", maxWidth:"760px", padding:"0 40px 120px"}}>
+          {/* 제목 */}
+          <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="제목을 입력하세요"
+            style={{width:"100%",border:"none",outline:"none",background:"none",fontSize:"28px",fontWeight:800,lineHeight:1.3,color:"#111",padding:"36px 0 16px",borderBottom:errors.title?"2px solid #FF6B6B":"1.5px solid #EAEAEA",marginBottom:"24px",display:"block"}} />
 
+          {/* 블록 목록 - userSelect:text로 블록간 드래그 선택 허용 */}
+          <div style={{userSelect:"text", WebkitUserSelect:"text", cursor:"text"}}>
+          {blocks.map((block, idx) => renderBlock(block, idx))}
+
+          </div>{/* end blocks wrapper */}
+          {/* 빈 영역 클릭 시 새 블록 추가 */}
           <div
-            ref={editorRef}
-            contentEditable={true}
-            suppressContentEditableWarning={true}
-            onMouseUp={function(e) {
-              saveSel();
-              // 텍스트 선택 시 링크 팝업 위치 계산
-              var sel = window.getSelection();
-              if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-                var rect = sel.getRangeAt(0).getBoundingClientRect();
-                var x = rect.left + rect.width / 2;
-                var y = rect.top - 50; // 선택 영역 위에 표시
-                if (y < 60) y = rect.bottom + 10; // 화면 위면 아래에 표시
-                setLinkPopupPos({ x: Math.max(160, Math.min(x, window.innerWidth - 160)), y: y });
-                setShowSelMenu(true); setShowLink(false); setShowHighlight(false);
-              } else {
-                setShowSelMenu(false); setShowLink(false); setShowHighlight(false);
+            style={{minHeight:"120px", cursor:"text", padding:"4px 0"}}
+            onClick={()=>{
+              const lastBlock = blocks[blocks.length - 1];
+              if (lastBlock && lastBlock.type === "text") {
+                const el = blockRefs.current[lastBlock.id];
+                if (el) { el.focus(); activeBlockId.current = lastBlock.id; return; }
               }
+              const newId = Date.now();
+              setBlocks(bs=>[...bs,{id:newId,type:"text",content:""}]);
+              setTimeout(()=>{
+                const el = blockRefs.current[newId];
+                if (el) { el.focus(); activeBlockId.current = newId; }
+              }, 30);
             }}
-            onKeyUp={saveSel}
-            onKeyDown={function(e) {
-                            if (e.key === "Enter") {
-                // 형광펜 span 안에 있으면 밖으로 빠져나오기
-                var sel = window.getSelection();
-                if (sel && sel.rangeCount > 0) {
-                  var range = sel.getRangeAt(0);
-                  var node = range.startContainer;
-                  // 부모 중에 backgroundColor 있는 span 찾기
-                  var span = null;
-                  var cur = node.nodeType === 3 ? node.parentNode : node;
-                  while (cur && cur !== e.currentTarget) {
-                    if (cur.tagName === "SPAN" && cur.style && cur.style.backgroundColor) {
-                      span = cur; break;
-                    }
-                    cur = cur.parentNode;
-                  }
-                  if (span) {
-                    e.preventDefault();
-                    // span 뒤에 새 p 삽입
-                    var newP = document.createElement("p");
-                    newP.innerHTML = "<br/>";
-                    span.parentNode.insertBefore(newP, span.nextSibling);
-                    var newRange = document.createRange();
-                    newRange.setStart(newP, 0);
-                    newRange.collapse(true);
-                    sel.removeAllRanges();
-                    sel.addRange(newRange);
-                    return;
-                  }
-                }
-              }
-              if (e.key === "Tab") {
-                e.preventDefault();
-                document.execCommand("insertText", false, "    ");
-              }
-            }}
-            onFocus={saveSel}
-            onBlur={saveSel}
-            onPaste={handlePaste}
-            style={{ minHeight: "400px", outline: "none", fontSize: "15px", lineHeight: 1.9, color: "#333", wordBreak: "break-word" }}
           />
-          <div style={{ minHeight: "80px", cursor: "text" }} onClick={function() {
-            if (!editorRef.current) return;
-            editorRef.current.focus();
-            const range = document.createRange();
-            range.selectNodeContents(editorRef.current);
-            range.collapse(false);
-            const sel = window.getSelection();
-            if (sel) { sel.removeAllRanges(); sel.addRange(range); }
-          }} />
         </div>
       </div>
-
-
     </div>
   );
 }
@@ -1339,8 +1512,17 @@ function PostPage({ post, onBack, onEdit, onDelete, onAddComment, onDeleteCommen
               ref={function(el) {
                 if (!el) return;
                 el.innerHTML = post.editorHtml;
+                // contenteditable 제거
                 el.querySelectorAll("[contenteditable]").forEach(function(node) {
                   node.removeAttribute("contenteditable");
+                });
+                // 섹션 삭제 버튼 제거
+                el.querySelectorAll("button[data-del-section]").forEach(function(btn) {
+                  btn.parentNode && btn.parentNode.removeChild(btn);
+                });
+                // 섹션 헤더 position 초기화 (x버튼 공간 제거)
+                el.querySelectorAll("div[style*='position:relative']").forEach(function(d) {
+                  d.style.position = "static";
                 });
               }} />
           ) : (
@@ -1724,12 +1906,10 @@ export default function App() {
   }
 
   if (showWrite) {
-    const isBLetter = editPost?.category === "b-letter" || (!editPost && writeCategory === "b-letter");
-    const FormComponent = isBLetter ? BLetterForm : WriteModal;
     return (
       <>
         <G />
-        <FormComponent
+        <WriteModal
           editPost={editPost}
           writeCategory={writeCategory}
           onClose={() => { setShowWrite(false); setEditPost(null); setWriteCategory(null); }}
