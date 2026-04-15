@@ -325,7 +325,20 @@ function BlockItem({ block, idx, dragOver, onDragOverBlock, onDropBlock, onDragS
       onDrop={(e) => onDropBlock(e, block.id)}
       onMouseEnter={e => { const h = e.currentTarget.querySelector("[data-drag-handle]"); if(h) h.style.opacity="1"; }}
       onMouseLeave={e => { const h = e.currentTarget.querySelector("[data-drag-handle]"); if(h) h.style.opacity="0"; }}
-      style={{ position:"relative", marginBottom:"0", paddingLeft:"28px", borderTop: isDragTarget ? "3px solid #4338CA" : "3px solid transparent", transition:"border-color 0.1s" }}
+      onClick={function(e) {
+        // 드래그 핸들 클릭은 무시
+        if (e.target.getAttribute && e.target.getAttribute("data-drag-handle")) return;
+        // 텍스트 블록: 내부 contentEditable 클릭은 기본 동작 유지
+        if (block.type === "text" || block.type === "html") return;
+        // 이미지/영상/임베드/color 블록: 클릭 시 전체 선택
+        var el = e.currentTarget;
+        var range = document.createRange();
+        range.selectNodeContents(el);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }}
+      style={{ position:"relative", marginBottom:"0", paddingLeft:"28px", borderTop: isDragTarget ? "3px solid #4338CA" : "3px solid transparent", transition:"border-color 0.1s", cursor: (block.type === "image" || block.type === "video" || block.type === "embed") ? "pointer" : "auto" }}
     >
       {/* 드래그 핸들 - 텍스트 포함 모든 블록 */}
       <div data-drag-handle="true"
@@ -338,6 +351,89 @@ function BlockItem({ block, idx, dragOver, onDragOverBlock, onDropBlock, onDragS
         onMouseLeave={e=>{ e.currentTarget.style.opacity="0"; e.currentTarget.style.background="none"; e.currentTarget.style.color="#CCCCCC"; }}
       >⠿</div>
 
+      {block.type === "embed" && (
+        <div style={{ position:"relative", margin:"8px 0" }}>
+          {block.embed && block.embed.type === "youtube" && (
+            <div style={{ position:"relative", paddingBottom:"56.25%", height:0, borderRadius:"12px", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.1)" }}>
+              <iframe
+                src={"https://www.youtube.com/embed/" + block.embed.id + "?rel=0"}
+                style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", border:"none" }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen={true}
+              ></iframe>
+            </div>
+          )}
+          {block.embed && (block.embed.type === "twitter" || block.embed.type === "instagram" || block.embed.type === "link") && (
+            <a href={block.embed.url} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:"12px", padding:"14px 16px", border:"1.5px solid #E0E0E0", borderRadius:"12px", textDecoration:"none", color:"#111", background:"#fff", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+              <span style={{ fontSize:"22px" }}>
+                {block.embed.type === "twitter" ? "𝕏" : block.embed.type === "instagram" ? "📷" : "🔗"}
+              </span>
+              <div>
+                <div style={{ fontWeight:700, fontSize:"14px", marginBottom:"2px" }}>
+                  {block.embed.type === "twitter" ? ("@" + block.embed.user) : block.embed.type === "instagram" ? ("Instagram " + (block.embed.kind === "reel" ? "릴스" : "게시물")) : "링크"}
+                </div>
+                <div style={{ fontSize:"12px", color:"#888", wordBreak:"break-all" }}>{block.embed.url}</div>
+              </div>
+            </a>
+          )}
+          <button onClick={function(){removeBlock(block.id);}} style={{ position:"absolute", top:"6px", right:"6px", border:"none", background:"rgba(0,0,0,0.4)", color:"#fff", borderRadius:"50%", width:"22px", height:"22px", cursor:"pointer", fontSize:"13px" }}>×</button>
+        </div>
+      )}
+      {block.type === "color" && (
+        <div style={{ margin:"10px 0", borderLeft:"4px solid "+block.border, borderRadius:"0 10px 10px 0", background:block.bg, padding:"12px 16px", position:"relative" }}>
+          <textarea
+            rows={1}
+            placeholder="내용을 입력하세요..."
+            defaultValue={block.text || ""}
+            onChange={function(e){ updateBlock(block.id, {text: e.target.value}); e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; }}
+            style={{ width:"100%", background:"transparent", border:"none", outline:"none", resize:"none", overflow:"hidden", fontSize:"14px", lineHeight:1.8, color:block.textColor, fontFamily:"inherit", display:"block", boxSizing:"border-box", padding:0 }}
+          />
+          {(block.images||[]).length > 0 || (block.videos||[]).length > 0 ? (
+            <div style={{ marginTop:"10px", display:"flex", gap:"8px", flexWrap:"wrap" }}>
+              {(block.images||[]).map(function(src,i) { return (
+                <div key={"ci"+i} style={{ position:"relative", maxWidth:"200px" }}>
+                  <img src={src} alt="" style={{ maxWidth:"100%", borderRadius:"8px", display:"block" }} />
+                  <button onClick={function(){updateBlock(block.id,{images:(block.images||[]).filter(function(_,j){return j!==i;})});}} style={{ position:"absolute",top:"4px",right:"4px",border:"none",background:"rgba(0,0,0,0.5)",color:"#fff",borderRadius:"50%",width:"18px",height:"18px",cursor:"pointer",fontSize:"11px" }}>×</button>
+                </div>
+              ); })}
+              {(block.videos||[]).map(function(src,i) { return (
+                <div key={"cv"+i} style={{ position:"relative", maxWidth:"200px" }}>
+                  <video src={src} controls style={{ maxWidth:"100%", borderRadius:"8px" }} />
+                  <button onClick={function(){updateBlock(block.id,{videos:(block.videos||[]).filter(function(_,j){return j!==i;})});}} style={{ position:"absolute",top:"4px",right:"4px",border:"none",background:"rgba(0,0,0,0.5)",color:"#fff",borderRadius:"50%",width:"18px",height:"18px",cursor:"pointer",fontSize:"11px" }}>×</button>
+                </div>
+              ); })}
+            </div>
+          ) : null}
+          <div style={{ marginTop:"8px", display:"flex", gap:"6px" }}>
+            <label style={{ fontSize:"12px", color:block.textColor, opacity:0.7, cursor:"pointer", display:"flex", alignItems:"center", gap:"3px" }}>
+              🖼️ 사진
+              <input type="file" accept="image/*" multiple style={{ display:"none" }} onChange={function(e){
+                var files = Array.from(e.target.files); e.target.value="";
+                files.reduce(function(p,f){ return p.then(function(){
+                  return uploadToStorage(f).then(function(url){
+                    if(!url) return new Promise(function(res){var r=new FileReader();r.onload=function(){res(r.result);};r.readAsDataURL(f);});
+                    return url;
+                  }).then(function(url){ if(url) updateBlock(block.id,{images:(block.images||[]).concat([url])}); });
+                }); }, Promise.resolve());
+              }} />
+            </label>
+            <label style={{ fontSize:"12px", color:block.textColor, opacity:0.7, cursor:"pointer", display:"flex", alignItems:"center", gap:"3px" }}>
+              🎬 영상
+              <input type="file" accept="video/*" multiple style={{ display:"none" }} onChange={function(e){
+                var files = Array.from(e.target.files); e.target.value="";
+                files.reduce(function(p,f){ return p.then(function(){
+                  return uploadToStorage(f).then(function(url){
+                    if(!url) return new Promise(function(res){var r=new FileReader();r.onload=function(){res(r.result);};r.readAsDataURL(f);});
+                    return url;
+                  }).then(function(url){ if(url) updateBlock(block.id,{videos:(block.videos||[]).concat([url])}); });
+                }); }, Promise.resolve());
+              }} />
+            </label>
+            <button onClick={function(){removeBlock(block.id);}} style={{ fontSize:"12px", color:block.textColor, opacity:0.7, background:"none", border:"none", cursor:"pointer", marginLeft:"auto" }}>삭제</button>
+          </div>
+        </div>
+      )}
       {block.type === "divider" && (
         <div style={{ padding:"8px 0", display:"flex", alignItems:"center", gap:"8px" }}>
           <hr style={{ flex:1, border:"none", borderTop:"2px solid #E0E0E0", margin:0 }} />
@@ -593,6 +689,40 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
     return [{ id: Date.now(), type: "text", content: "" }];
   }
   const [blocks, setBlocks] = React.useState(initBlocks);
+  const blocksHistory = React.useRef([]);
+  const isUndoing = React.useRef(false);
+
+  // blocks 변경 시 히스토리 저장
+  const setBlocksWithHistory = React.useCallback(function(updater) {
+    setBlocks(function(prev) {
+      var next = typeof updater === "function" ? updater(prev) : updater;
+      if (!isUndoing.current) {
+        blocksHistory.current = blocksHistory.current.slice(-30).concat([prev]);
+      }
+      return next;
+    });
+  }, []);
+
+  // Ctrl+Z: 블록 히스토리 되돌리기
+  React.useEffect(function() {
+    function handleUndo(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        // 텍스트 블록 안에서는 브라우저 기본 동작
+        var active = document.activeElement;
+        if (active && active.getAttribute && active.getAttribute("contenteditable")) return;
+        if (blocksHistory.current.length > 0) {
+          e.preventDefault();
+          isUndoing.current = true;
+          var prev = blocksHistory.current.pop();
+          setBlocks(prev);
+          setTimeout(function() { isUndoing.current = false; }, 0);
+        }
+      }
+    }
+    window.addEventListener("keydown", handleUndo);
+    return function() { window.removeEventListener("keydown", handleUndo); };
+  }, []);
+
   const [dragOver, setDragOver] = React.useState(null);
   const dragId = React.useRef(null);
   const blockRefs = React.useRef({});
@@ -607,6 +737,8 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
   const [showSelMenu,    setShowSelMenu]    = React.useState(false);
   const [showLink,       setShowLink]       = React.useState(false);
   const [showHighlight,  setShowHighlight]  = React.useState(false);
+  const [showEmbed,      setShowEmbed]      = React.useState(false);
+  const [embedUrl,       setEmbedUrl]       = React.useState("");
   const [linkUrl,        setLinkUrl]        = React.useState("https://");
   const [linkPopupPos,   setLinkPopupPos]   = React.useState({ x: 0, y: 0 });
   const [showColorBox,   setShowColorBox]   = React.useState(false);
@@ -621,9 +753,9 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
       return bs.map(function(b) { return b.id === id ? Object.assign({}, b, changes) : b; });
     });
   }
-  function removeBlock(id) { setBlocks(function(bs) { return bs.filter(function(b) { return b.id !== id; }); }); }
+  function removeBlock(id) { setBlocksWithHistory(function(bs) { return bs.filter(function(b) { return b.id !== id; }); }); }
   function addBlock(afterId, block) {
-    setBlocks(function(bs) {
+    setBlocksWithHistory(function(bs) {
       var idx = bs.findIndex(function(b) { return b.id === afterId; });
       var newBs = bs.slice();
       newBs.splice(idx + 1, 0, block);
@@ -721,6 +853,81 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) savedSel.current = sel.getRangeAt(0).cloneRange();
   }
+  function getEmbedHtml(url) {
+    var u = url.trim();
+
+    // 유튜브 - iframe 완전 지원
+    var ytMatch = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      var vid = ytMatch[1];
+      return '<div contenteditable="false" style="position:relative;padding-bottom:56.25%;height:0;margin:10px 0;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1);">'
+        + '<iframe src="https://www.youtube.com/embed/' + vid + '?rel=0" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>'
+        + '</div>';
+    }
+
+    // X(트위터) - 링크 프리뷰 카드
+    var twMatch = u.match(/(?:twitter\.com|x\.com)\/([^/?#]+)\/status\/(\d+)/);
+    if (twMatch) {
+      return '<a href="' + u + '" target="_blank" rel="noopener noreferrer" '
+        + 'style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid #e1e8ed;border-radius:12px;text-decoration:none;color:#111;background:#fff;margin:10px 0;box-shadow:0 1px 6px rgba(0,0,0,0.06);">'
+        + '<div style="width:36px;height:36px;background:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+        + '<svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
+        + '</div>'
+        + '<div style="min-width:0;">'
+        + '<div style="font-weight:700;font-size:14px;margin-bottom:3px;">@' + twMatch[1] + '</div>'
+        + '<div style="font-size:12px;color:#657786;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + u + '</div>'
+        + '</div>'
+        + '<svg viewBox="0 0 24 24" width="16" height="16" fill="#657786" style="flex-shrink:0;margin-left:auto;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
+        + '</a>';
+    }
+
+    // 인스타그램 - 링크 프리뷰 카드
+    var igMatch = u.match(/instagram\.com\/(p|reel|tv)\/([^/?#]+)/);
+    if (igMatch) {
+      var igType = igMatch[1] === "reel" ? "릴스" : igMatch[1] === "tv" ? "IGTV" : "게시물";
+      return '<a href="' + u + '" target="_blank" rel="noopener noreferrer" '
+        + 'style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid #dbdbdb;border-radius:12px;text-decoration:none;color:#111;background:#fff;margin:10px 0;box-shadow:0 1px 6px rgba(0,0,0,0.06);">'
+        + '<div style="width:36px;height:36px;border-radius:10px;flex-shrink:0;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;">'
+        + '<svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'
+        + '</div>'
+        + '<div style="min-width:0;">'
+        + '<div style="font-weight:700;font-size:14px;margin-bottom:3px;">Instagram ' + igType + '</div>'
+        + '<div style="font-size:12px;color:#8e8e8e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + u + '</div>'
+        + '</div>'
+        + '</a>';
+    }
+
+    return null;
+  }
+
+  function parseEmbedUrl(url) {
+    // 유튜브
+    var ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) return { type: "youtube", id: ytMatch[1], url: url };
+    // X(트위터)
+    var twMatch = url.match(/(?:twitter\.com|x\.com)\/([^/?#]+)\/status\/(\d+)/);
+    if (twMatch) return { type: "twitter", user: twMatch[1], id: twMatch[2], url: url };
+    // 인스타그램
+    var igMatch = url.match(/instagram\.com\/(p|reel|tv)\/([^/?#]+)/);
+    if (igMatch) return { type: "instagram", kind: igMatch[1], url: url };
+    // 기타
+    return { type: "link", url: url };
+  }
+
+  function applyEmbed() {
+    var url = embedUrl.trim();
+    if (!url) return;
+    var parsed = parseEmbedUrl(url);
+    var curId = activeBlockId.current;
+    var newBlock = { id: Date.now(), type: "embed", embed: parsed };
+    if (curId) {
+      addBlock(curId, newBlock);
+    } else {
+      setBlocks(function(bs) { return bs.concat([newBlock]); });
+    }
+    setShowEmbed(false); setShowSelMenu(false); setEmbedUrl("");
+  }
+
   function applyLink() {
     if (!linkUrl || linkUrl === "https://" || !savedSel.current) return;
     const range = savedSel.current;
@@ -773,8 +980,19 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
         editorHtml += "<video src=\"" + (b.src) + "\" controls style=\"max-width:100%;border-radius:10px;display:block;margin:8px 0;\"></video>";
       } else if (b.type === "layout") {
         editorHtml += b.html || "";
+      } else if (b.type === "color") {
+        var imgs = (b.images||[]).map(function(src){ return '<img src="'+src+'" style="max-width:200px;border-radius:8px;margin:4px;" />'; }).join("");
+        var vids = (b.videos||[]).map(function(src){ return '<video src="'+src+'" controls style="max-width:200px;border-radius:8px;margin:4px;"></video>'; }).join("");
+        editorHtml += '<div style="border-left:4px solid '+(b.border||"#E0E0E0")+';border-radius:0 10px 10px 0;background:'+(b.bg||"#F5F5F5")+';padding:12px 16px;margin:10px 0;color:'+(b.textColor||"#333")+';font-size:14px;line-height:1.8;">'+(b.text||"")+(imgs||vids?"<div style='margin-top:8px;'>"+imgs+vids+"</div>":"")+'</div>';
       } else if (b.type === "divider") {
         editorHtml += '<hr style="border:none;border-top:2px solid #E0E0E0;margin:16px 0;" />';
+      } else if (b.type === "embed") {
+        var em = b.embed || {};
+        if (em.type === "youtube") {
+          editorHtml += '<div style="position:relative;padding-bottom:56.25%;height:0;margin:10px 0;border-radius:12px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/' + em.id + '?rel=0" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>';
+        } else {
+          editorHtml += '<a href="' + em.url + '" target="_blank" rel="noopener noreferrer" style="display:block;padding:12px 16px;border:1.5px solid #E0E0E0;border-radius:12px;color:#4338CA;text-decoration:none;margin:8px 0;">' + em.url + '</a>';
+        }
       } else if (b.type === "toggle") {
         const imgs = (b.images||[]).map(src=>"<img src=\"" + (src) + "\" style=\"max-width:100%;border-radius:8px;margin:4px 0;display:block;\" />").join("");
         const vids = (b.videos||[]).map(src=>"<video src=\"" + (src) + "\" controls style=\"max-width:100%;border-radius:8px;margin:4px 0;display:block;\"></video>").join("");
@@ -871,7 +1089,21 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.currentTarget.style.background="none"}
           ><span style={{fontSize:"15px"}}>🖊️</span><span style={{fontSize:"9px",opacity:0.7}}>형광펜</span></button>
           <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} ></div>
-          <button type="button" onClick={()=>{setShowSelMenu(false);setShowLink(false);setShowHighlight(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#888",fontSize:"16px",padding:"4px 6px"}}>✕</button>
+          <button type="button" onClick={()=>{setShowLink(false);setShowHighlight(false);setShowEmbed(true);setEmbedUrl("");}}            style={{border:"none",background:"none",cursor:"pointer",padding:"3px 8px",borderRadius:"6px",display:"flex",flexDirection:"column",alignItems:"center",gap:"1px",color:"#fff"}}            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.currentTarget.style.background="none"}
+          ><span style={{fontSize:"15px"}}>▶️</span><span style={{fontSize:"9px",opacity:0.7}}>임베드</span></button>
+          <div style={{width:"1px",height:"30px",background:"rgba(255,255,255,0.2)"}} ></div>
+          <button type="button" onClick={()=>{setShowSelMenu(false);setShowLink(false);setShowHighlight(false);setShowEmbed(false);}} style={{border:"none",background:"none",cursor:"pointer",color:"#888",fontSize:"16px",padding:"4px 6px"}}>✕</button>
+        </div>
+      )}
+      {showSelMenu && showEmbed && (
+        <div style={{ position:"fixed", top:linkPopupPos.y+"px", left:linkPopupPos.x+"px", transform:"translateX(-50%)", background:"#1A1A1A", borderRadius:"8px", padding:"5px 8px", zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", display:"flex", gap:"6px", alignItems:"center", minWidth:"300px" }}>
+          <button type="button" onClick={()=>setShowEmbed(false)} style={{border:"none",background:"none",cursor:"pointer",color:"#aaa",fontSize:"18px",padding:"2px"}}>←</button>
+          <span style={{fontSize:"14px"}}>▶️</span>
+          <input autoFocus value={embedUrl} onChange={e=>setEmbedUrl(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();applyEmbed();}if(e.key==="Escape")setShowEmbed(false);}}
+            placeholder="YouTube / X / Instagram URL"
+            style={{flex:1,border:"none",background:"rgba(255,255,255,0.15)",borderRadius:"6px",padding:"6px 10px",fontSize:"13px",outline:"none",color:"#fff",caretColor:"#fff"}} />
+          <button type="button" onClick={applyEmbed} style={{padding:"6px 12px",borderRadius:"6px",background:"#059669",color:"#fff",border:"none",cursor:"pointer",fontSize:"12px",fontWeight:700,whiteSpace:"nowrap"}}>임베드</button>
         </div>
       )}
       {showSelMenu && showLink && (
@@ -914,20 +1146,9 @@ function WriteModal({ onClose, onSubmit, editPost, writeCategory }) {
           {[{label:"파랑",bg:"#EFF6FF",border:"#BFDBFE",text:"#1E40AF",icon:"🔵"},{label:"초록",bg:"#F0FDF4",border:"#BBF7D0",text:"#166534",icon:"🟢"},{label:"노랑",bg:"#FEFCE8",border:"#FDE68A",text:"#92400E",icon:"🟡"},{label:"빨강",bg:"#FFF1F2",border:"#FECDD3",text:"#BE123C",icon:"🔴"},{label:"보라",bg:"#F5F3FF",border:"#DDD6FE",text:"#5B21B6",icon:"🟣"}].map(col=>(
             <button key={col.label} type="button"
               onClick={()=>{
-                const el = activeBlockId.current ? blockRefs.current[activeBlockId.current] : null;
-                if (!el) return;
-                const wrapper = document.createElement("div");
-                wrapper.setAttribute("contenteditable","false");
-                wrapper.style.cssText = "margin:10px 0;display:block;";
-                const ta = document.createElement("textarea");
-                ta.rows=1; ta.placeholder="내용을 입력하세요...";
-                ta.style.cssText = "width:100%;background:"+col.bg+";border-left:4px solid "+col.border+";border-radius:0 8px 8px 0;padding:12px 16px;color:"+col.text+";font-size:14px;line-height:1.8;font-family:inherit;border-top:none;border-right:none;border-bottom:none;outline:none;resize:none;overflow:hidden;display:block;box-sizing:border-box;";
-                ta.addEventListener("input",()=>{ta.style.height="auto";ta.style.height=ta.scrollHeight+"px";});
-                wrapper.appendChild(ta);
-                if (savedSel.current) {
-                  try { const s=window.getSelection();s.removeAllRanges();s.addRange(savedSel.current);const r=s.getRangeAt(0);r.collapse(false);const p=document.createElement("p");p.innerHTML="<br/>";r.insertNode(p);r.insertNode(wrapper); } catch(ex){el.appendChild(wrapper);}
-                } else el.appendChild(wrapper);
-                setTimeout(()=>ta.focus(),10);
+                var curId = activeBlockId.current;
+                var newBlock = { id: Date.now(), type: "color", bg: col.bg, border: col.border, textColor: col.text, text: "", images: [], videos: [] };
+                if (curId) { addBlock(curId, newBlock); } else { setBlocks(function(bs){return bs.concat([newBlock]);}); }
                 setShowColorBox(false);
               }}
               style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",border:"2px solid "+col.border,background:col.bg,borderRadius:"8px",padding:"8px 10px",cursor:"pointer",fontSize:"11px",color:col.text,fontWeight:600,minWidth:"46px"}}
@@ -1501,6 +1722,29 @@ export default function App() {
   const [detail, setDetail]         = useState(null);
   const [postPage, setPostPage]     = useState(null);
   const [bmOnly, setBmOnly]         = useState(false);
+
+  // 브라우저 뒤로가기 지원
+  React.useEffect(function() {
+    function handlePop() {
+      if (showWrite) { setShowWrite(false); setEditPost(null); setWriteCategory(null); return; }
+      if (postPage) { setPostPage(null); return; }
+    }
+    window.addEventListener("popstate", handlePop);
+    return function() { window.removeEventListener("popstate", handlePop); };
+  }, [showWrite, postPage]);
+
+  React.useEffect(function() {
+    if (postPage) {
+      window.history.pushState({ page: "post" }, "");
+    }
+  }, [postPage]);
+
+  React.useEffect(function() {
+    if (showWrite) {
+      window.history.pushState({ page: "write" }, "");
+    }
+  }, [showWrite]);
+
 
   async function handleLike(id) {
     setPosts(function(ps) {
